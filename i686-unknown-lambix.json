@@ -1,0 +1,29 @@
+{
+  "llvm-target": "i686-unknown-none",
+  "target-endian": "little",
+  "target-pointer-width": "32",
+  "target-c-int-width": "32",
+  "os": "lambix",
+  "env": "floof",
+  "vendor": "lambix",
+  "arch": "x86",
+  "linker-flavor": "gcc",
+  "cpu": "pentium4",
+  "data-layout": "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+  "pre-link-args": {
+    "gcc": [
+      "-m32",
+      "-nostdlib",
+      "-nostartfiles",
+      "-nostdlib",
+      "-nodefaultlibs"
+    ]
+  },
+  "features": "-sse,-mmx,+soft-float",
+  "executables": true,
+  "disable-redzone": true,
+  "linker-is-gnu": true,
+  "position-independent-executables": false,
+  "panic-strategy": "abort",
+  "max-atomic-width": 64
+}

@@ -1,0 +1,28 @@
+{
+    "llvm-target": "x86_64-unknown-none",
+    "target-endian": "little",
+    "target-pointer-width": "64",
+    "target-c-int-width": "32",
+    "os": "lambix",
+    "env": "floof",
+    "vendor": "lambix",
+    "arch": "x86_64",
+    "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+    "linker-flavor": "gcc",
+    "cpu": "x86-64",
+    "pre-link-args": {
+        "gcc": [
+            "-nostdlib",
+            "-nostartfiles",
+            "-nostdlib",
+            "-nodefaultlibs",
+            "-ffreestanding"
+        ]
+    },
+    "features": "-sse,-mmx,+soft-float",
+    "executables": true,
+    "disable-redzone": true,
+    "linker-is-gnu": true,
+    "position-independent-executables": true,
+    "panic-strategy": "abort"
+}

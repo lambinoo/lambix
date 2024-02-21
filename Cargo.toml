@@ -1,0 +1,6 @@
+[workspace]
+resolver = "2"
+members = ["bootloader", "kernel", "builtins_shared", "build_utils"]
+
+[profile.release]
+# debug = true
