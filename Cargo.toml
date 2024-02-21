@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["bootloader", "kernel", "builtins_shared", "build_utils"]
+exclude = ["compiler/rust"]
 
 [profile.release]
 # debug = true
