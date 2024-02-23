@@ -6,6 +6,8 @@ KERNEL_TARGET := x86_64-unknown-lambix
 BOOT_OUT_DIR := target/$(BOOTLOADER_TARGET)/release
 OUT_DIR := target/$(KERNEL_TARGET)/release
 
+TARGET_FLAGS := -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem
+
 iso: $(OUT_DIR)/lambix.iso
 
 $(OUT_DIR)/lambix.iso: $(OUT_DIR)/lambix packaging/grub/grub.cfg
@@ -25,7 +27,10 @@ $(OUT_DIR)/kernel: kernel
 	touch "$@"
 
 bootloader:
-	cargo build -p $@ --target ./$(BOOTLOADER_TARGET).json --release
+	cargo build -p $@ --target ./$(BOOTLOADER_TARGET).json $(TARGET_FLAGS) --release
 
 kernel:
-	cargo build -p $@ --target ./$(KERNEL_TARGET).json --release
+	cargo build -p $@ --target ./$(KERNEL_TARGET).json $(TARGET_FLAGS) --release
+
+lambemu:
+	cargo build --package "tool_$@" --release
