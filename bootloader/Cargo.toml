@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-builtins_shared = { path = "../builtins_shared"}
 
 [build-dependencies]
 build_utils = { path = "../build_utils"}

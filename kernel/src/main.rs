@@ -3,6 +3,4 @@
 
 extern crate builtins_shared;
 
-extern "C" fn _start() {
-    
-}
+extern "C" fn _start() {}
