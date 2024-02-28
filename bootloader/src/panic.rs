@@ -1,4 +1,4 @@
-use core::{arch::asm, panic::PanicInfo};
+use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {

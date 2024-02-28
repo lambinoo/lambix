@@ -1,7 +1,7 @@
 use core::ffi::CStr;
 use core::fmt::Debug;
 use core::mem::{align_of, size_of};
-use core::ops::{Deref, Range};
+use core::ops::Deref;
 use core::ptr::NonNull;
 use core::slice::Chunks;
 
@@ -57,6 +57,7 @@ struct TagHeader {
     size: u32,
 }
 
+#[allow(dead_code)]
 impl TagHeader {
     const MEMORY_INFORMATION: u32 = 4;
     const BIOS_BOOT_DEVICE: u32 = 5;
@@ -120,7 +121,8 @@ impl MemoryRange {
 impl Debug for MemoryRange {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("MemoryRange")
-            .field("base", &format_args!("0x{:016x}", self.base))
+            .field("base", &format_args!("{:#016x}", self.base))
+            .field("end", &format_args!("{:#016x}", self.base + self.size))
             .field("length", &self.size)
             .finish()
     }

@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(format_args_nl)]
 
-use crate::multiboot::{BootInformation, MemoryInfo, Tag};
+use crate::multiboot::{BootInformation, Tag};
 
 #[macro_use]
 mod serial_print;
@@ -35,7 +35,7 @@ pub extern "C" fn boot_start(
             Tag::MemoryMap(mem) => mem
                 .iter()
                 .map(|range| range)
-                .for_each(|m| println!("{:?}", m)),
+                .for_each(|m| println!("{:#?}", m)),
             _ => {}
         }
     }
