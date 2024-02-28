@@ -24,10 +24,13 @@ SECTIONS {
         *(.text .text.*)
     }
 
-    . = ALIGN(16);
-    kernel_start_addr = .;
+    . = ALIGN(4K);
     .kernel : {
-        BYTE(1)
+        lambix_kernel_header = .;
+        LONG(0) # Magic
+        LONG(0) # Kernel size
+        lambix_kernel_start = .;
+        LONG(0)
     }
     kernel_end_addr = .;
 }

@@ -2,6 +2,10 @@
 #![no_main]
 #![feature(format_args_nl)]
 
+use core::ptr::NonNull;
+
+use elf::{endian::LittleEndian, ElfBytes};
+
 use crate::multiboot::{BootInformation, Tag};
 
 #[macro_use]
@@ -11,13 +15,29 @@ mod panic;
 mod bootstrap;
 mod multiboot;
 
-extern "C" {
-    static kernel_start_addr: u8;
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+struct KernelHeader {
+    magic: u32,
+    len: u32
 }
 
-fn get_kernel_elf_start() -> *const u8 {
-    unsafe { &kernel_start_addr as *const _ }
+extern "C" {
+    static lambix_kernel_header: KernelHeader;
+    static lambix_kernel_start: u8;
 }
+
+fn get_embedded_kernel() -> Option<&'static [u8]> {
+    let header = unsafe { lambix_kernel_header };
+    if header.magic == u32::from_le_bytes(b"lamb".clone()) {
+        let kernel_size = usize::try_from(header.len).ok()?;
+        let slice = unsafe { core::slice::from_raw_parts(&lambix_kernel_start as *const u8, kernel_size) };
+        Some(slice)
+    } else {
+        None
+    }
+}
+
 
 #[no_mangle]
 pub extern "C" fn boot_start(
@@ -27,8 +47,15 @@ pub extern "C" fn boot_start(
     let boot_info = unsafe { BootInformation::from_ptr(multiboot_header_ptr, multiboot_magic) }
         .expect("Failed to get boot information from the bootloader");
 
-    let start = get_kernel_elf_start();
-    let elf_header = unsafe { core::slice::from_raw_parts(start, 4) };
+    let elf_header = get_embedded_kernel().expect("No embedded kernel available, aborting.");
+    let elf = ElfBytes::<LittleEndian>::minimal_parse(elf_header).expect("Bad ELF payload");
+
+    let headers = elf.section_headers().unwrap();
+    let (headers, names) = elf.section_headers_with_strtab().unwrap();
+
+    for header in headers.unwrap().iter() {
+        println!("{:?}, {:?}", header, names.unwrap().get(header.sh_name as usize));
+    }
 
     for tag in boot_info.iter() {
         match tag {

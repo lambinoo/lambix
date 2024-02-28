@@ -20,7 +20,15 @@ $(OUT_DIR)/lambix.iso: $(OUT_DIR)/lambix packaging/grub/grub.cfg
 $(BOOT_OUT_DIR)/bootloader: bootloader
 	touch "$@"
 
-$(OUT_DIR)/lambix: $(OUT_DIR)/kernel $(BOOT_OUT_DIR)/bootloader
+$(OUT_DIR)/lambix.header: $(OUT_DIR)/kernel
+	perl -we 'print pack "c", shift' 108  > $@
+	perl -we 'print pack "c", shift' 97  >> $@
+	perl -we 'print pack "c", shift' 109 >> $@
+	perl -we 'print pack "c", shift' 98  >> $@
+	perl -we 'print pack "N", shift' $$(stat --printf="%s" $(OUT_DIR)/kernel) >> $@
+
+$(OUT_DIR)/lambix: $(OUT_DIR)/lambix.header $(OUT_DIR)/kernel $(BOOT_OUT_DIR)/bootloader
+	cat "$(OUT_DIR)/kernel" >>$<
 	objcopy --update-section=.kernel=$< --set-section-flags=.kernel=CONTENTS,ALLOC,LOAD,READONLY,DATA $(BOOT_OUT_DIR)/bootloader $@
 
 $(OUT_DIR)/kernel: kernel
