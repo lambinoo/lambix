@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(format_args_nl)]
 
-use crate::multiboot::BootInformation;
+use crate::multiboot::{BootInformation, MemoryInfo, Tag};
 
 #[macro_use]
 mod serial_print;
@@ -13,7 +13,6 @@ mod multiboot;
 
 extern "C" {
     static kernel_start_addr: u8;
-    static kernel_end_addr: u8;
 }
 
 fn get_kernel_elf_start() -> *const u8 {
@@ -32,7 +31,13 @@ pub extern "C" fn boot_start(
     let elf_header = unsafe { core::slice::from_raw_parts(start, 4) };
 
     for tag in boot_info.iter() {
-        println!("{:?}", tag);
+        match tag {
+            Tag::MemoryMap(mem) => mem
+                .iter()
+                .map(|range| range)
+                .for_each(|m| println!("{:?}", m)),
+            _ => {}
+        }
     }
 
     unreachable!()

@@ -24,7 +24,7 @@ impl core::fmt::Write for IOPort {
     }
 }
 
-pub fn _println_impl(args: fmt::Arguments) {
+pub fn print(args: fmt::Arguments) {
     let mut port = IO_PORT_PRINT;
     let _ = port.write_fmt(args);
 }
@@ -35,7 +35,7 @@ macro_rules! print {
 
     ($($arg:tt)*) => {
         {
-            crate::serial_print::_println_impl(format_args!($($arg)*));
+            crate::serial_print::print(format_args!($($arg)*));
         }
     };
 }
@@ -46,7 +46,7 @@ macro_rules! println {
 
     ($($arg:tt)*) => {
         {
-            crate::serial_print::_println_impl(format_args_nl!($($arg)*));
+            crate::serial_print::print(format_args_nl!($($arg)*));
         }
     };
 }
