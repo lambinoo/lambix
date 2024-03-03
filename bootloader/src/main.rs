@@ -2,11 +2,9 @@
 #![no_main]
 #![feature(format_args_nl)]
 
-use core::ptr::NonNull;
-
 use elf::{endian::LittleEndian, ElfBytes};
 
-use crate::multiboot::{BootInformation, Tag};
+use crate::{gdt::EARLY_GDT, multiboot::{BootInformation, Tag}};
 
 #[macro_use]
 mod serial_print;
@@ -14,6 +12,7 @@ mod panic;
 
 mod bootstrap;
 mod multiboot;
+mod gdt;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -44,28 +43,29 @@ pub extern "C" fn boot_start(
     multiboot_magic: u32,
     multiboot_header_ptr: *mut BootInformation,
 ) -> ! {
-    let boot_info = unsafe { BootInformation::from_ptr(multiboot_header_ptr, multiboot_magic) }
-        .expect("Failed to get boot information from the bootloader");
+    println!("{:#?}", EARLY_GDT);
 
-    let elf_header = get_embedded_kernel().expect("No embedded kernel available, aborting.");
-    let elf = ElfBytes::<LittleEndian>::minimal_parse(elf_header).expect("Bad ELF payload");
 
-    let headers = elf.section_headers().unwrap();
-    let (headers, names) = elf.section_headers_with_strtab().unwrap();
+    // let boot_info = unsafe { BootInformation::from_ptr(multiboot_header_ptr, multiboot_magic) }
+    //     .expect("Failed to get boot information from the bootloader");
 
-    for header in headers.unwrap().iter() {
-        println!("{:?}, {:?}", header, names.unwrap().get(header.sh_name as usize));
-    }
+    // let elf_header = get_embedded_kernel().expect("No embedded kernel available, aborting.");
+    // let elf = ElfBytes::<LittleEndian>::minimal_parse(elf_header).expect("Bad ELF payload");
 
-    for tag in boot_info.iter() {
-        match tag {
-            Tag::MemoryMap(mem) => mem
-                .iter()
-                .map(|range| range)
-                .for_each(|m| println!("{:#?}", m)),
-            _ => {}
-        }
-    }
+    // let (headers, names) = elf.section_headers_with_strtab().unwrap();
+    // for header in headers.unwrap().iter() {
+    //     println!("{:?}, {:?}", header, names.unwrap().get(header.sh_name as usize));
+    // }
+
+    // for tag in boot_info.iter() {
+    //     match tag {
+    //         Tag::MemoryMap(mem) => mem
+    //             .iter()
+    //             .map(|range| range)
+    //             .for_each(|m| println!("{:#?}", m)),
+    //         _ => {}
+    //     }
+    // }
 
     unreachable!()
 }

@@ -5,8 +5,7 @@ KERNEL_TARGET := x86_64-unknown-lambix
 
 BOOT_OUT_DIR := target/$(BOOTLOADER_TARGET)/release
 OUT_DIR := target/$(KERNEL_TARGET)/release
-
-TARGET_FLAGS := -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem
+TARGET_FLAGS :=
 
 iso: $(OUT_DIR)/lambix.iso
 

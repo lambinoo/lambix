@@ -1,4 +1,4 @@
-use core::mem::size_of;
+use core::{arch::global_asm, mem::size_of};
 
 #[repr(C, align(8))]
 struct TagHeader {
@@ -64,8 +64,7 @@ impl MultibootHeader {
 #[link_section = ".multiboot2"]
 static HEADER: MultibootHeader = MultibootHeader::new();
 
-core::arch::global_asm!(
-    r"
+core::arch::global_asm!(r"
     .global _lambix_early_stack
     .comm _lambix_early_stack, 4096, 16
 
@@ -78,9 +77,23 @@ core::arch::global_asm!(
         mov esp, _lambix_early_stack
         add esp, 4096
 
+        lgdt {gdt}
+
         push ebx
         push eax
         push ebp
-        jmp boot_start
-"
+        jmp _start_gdt
+    ",
+    gdt = sym crate::gdt::EARLY_GDT,
+);
+
+core::arch::global_asm!("
+    .text
+    .global _start_gdt
+    _start_gdt:
+    jmp {start}
+    // ljmp $0x08,${start}
+    ",
+    start = sym crate::boot_start,
+    // options(att_syntax)
 );
