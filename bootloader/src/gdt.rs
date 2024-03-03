@@ -12,12 +12,11 @@ impl core::fmt::Debug for Descriptor {
     }
 }
 
-
 impl Descriptor {
-    const Present: u32 = 1 << 15;
-    const Available: u32 = 1 << 20;
-    const DefaultOperandSize: u32 = 1 << 22;
-    const Granulariry: u32 =  1 << 23;
+    const PRESET: u32 = 1 << 15;
+    const AVAILABLE: u32 = 1 << 20;
+    const DEFAULT_OPERAND_SIZE: u32 = 1 << 22;
+    const GRANULARITY: u32 = 1 << 23;
 
     const fn new(base_value: u64, base_address: u32, segment_limit: u32) -> Self {
         let base_address = base_address as u64;
@@ -38,7 +37,6 @@ impl Descriptor {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct CodeDescriptor(Descriptor);
@@ -47,12 +45,14 @@ impl CodeDescriptor {
     const CODE_TYPE: u64 = 0b11 << 33;
 
     pub const fn new(base_address: u32, segment_limit: u32) -> Self {
-        Self(Descriptor::new(Self::CODE_TYPE, base_address, segment_limit)
-            .with_flag(Descriptor::Present)
-            .with_flag(Descriptor::DefaultOperandSize)
-            .with_flag(Descriptor::Granulariry))
+        Self(
+            Descriptor::new(Self::CODE_TYPE, base_address, segment_limit)
+                .with_flag(Descriptor::PRESET)
+                .with_flag(Descriptor::DEFAULT_OPERAND_SIZE)
+                .with_flag(Descriptor::GRANULARITY),
+        )
     }
-    
+
     pub const fn readable(self) -> Self {
         Self(self.0.with_flag(1 << 9))
     }
@@ -66,7 +66,6 @@ impl CodeDescriptor {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct DataDescriptor(Descriptor);
@@ -75,12 +74,14 @@ impl DataDescriptor {
     const DATA_TYPE: u64 = 0b10 << 33;
 
     pub const fn new(base_address: u32, segment_limit: u32) -> Self {
-        Self(Descriptor::new(Self::DATA_TYPE, base_address, segment_limit)
-            .with_flag(Descriptor::Present)
-            .with_flag(Descriptor::DefaultOperandSize)
-            .with_flag(Descriptor::Granulariry))
+        Self(
+            Descriptor::new(Self::DATA_TYPE, base_address, segment_limit)
+                .with_flag(Descriptor::PRESET)
+                .with_flag(Descriptor::DEFAULT_OPERAND_SIZE)
+                .with_flag(Descriptor::GRANULARITY),
+        )
     }
-    
+
     pub const fn writable(self) -> Self {
         Self(self.0.with_flag(1 << 9))
     }
@@ -105,7 +106,7 @@ impl<const N: usize> GlobalDescriptorTable<N> {
     pub fn apply(&'static self) {
         let register = GlobalDescriptorTableRegister(
             self as *const _ as usize as _,
-            core::mem::size_of::<Self>() as u16
+            core::mem::size_of::<Self>() as u16,
         );
 
         unsafe {
@@ -122,7 +123,7 @@ impl<const N: usize> GlobalDescriptorTable<N> {
 pub static EARLY_GDT: GlobalDescriptorTable<3> = GlobalDescriptorTable([
     Descriptor::new(0, 0, 0),
     CodeDescriptor::new(0, 0xfffff).readable().descriptor(),
-    DataDescriptor::new(0, 0xfffff).writable().descriptor()
+    DataDescriptor::new(0, 0xfffff).writable().descriptor(),
 ]);
 
 const EARLY_GDT_CODE: u32 = 0x08;

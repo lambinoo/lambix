@@ -1,4 +1,4 @@
-use core::{arch::global_asm, mem::size_of};
+use core::mem::size_of;
 
 #[repr(C, align(8))]
 struct TagHeader {
