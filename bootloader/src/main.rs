@@ -1,15 +1,18 @@
 #![no_std]
 #![no_main]
 #![feature(format_args_nl)]
+#![feature(abi_x86_interrupt)]
 
-use crate::{gdt::EARLY_GDT, multiboot::BootInformation};
+use crate::{gdt::EARLY_GDT, idt::IDT, multiboot::BootInformation};
 
 #[macro_use]
 mod serial_print;
 mod panic;
 
 mod bootstrap;
+mod descriptors;
 mod gdt;
+mod idt;
 mod multiboot;
 
 #[derive(Debug, Clone, Copy)]
@@ -36,12 +39,27 @@ fn get_embedded_kernel() -> Option<&'static [u8]> {
     }
 }
 
+#[macro_export]
+macro_rules! enable_interrupts {
+    () => {
+        unsafe { core::arch::asm!("sti") };
+    };
+}
+
 #[no_mangle]
 pub extern "C" fn boot_start(
-    multiboot_magic: u32,
-    multiboot_header_ptr: *mut BootInformation,
+    _multiboot_magic: u32,
+    _multiboot_header_ptr: *mut BootInformation,
 ) -> ! {
-    println!("{:#?}", EARLY_GDT);
+    EARLY_GDT.load_gdt();
+    println!("GDT has been applied");
+
+    let idt = IDT::default();
+    println!("IDT of size {}", core::mem::size_of_val(&idt));
+    println!("{:#?}", idt);
+    idt.load_idt();
+
+    unsafe { core::arch::asm!("int 100") };
 
     // let boot_info = unsafe { BootInformation::from_ptr(multiboot_header_ptr, multiboot_magic) }
     //     .expect("Failed to get boot information from the bootloader");

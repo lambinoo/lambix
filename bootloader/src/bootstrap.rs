@@ -66,7 +66,7 @@ static HEADER: MultibootHeader = MultibootHeader::new();
 
 core::arch::global_asm!(r"
     .global _lambix_early_stack
-    .comm _lambix_early_stack, 4096, 16
+    .comm _lambix_early_stack, 16384, 16
 
     .text
     .global _start
@@ -75,25 +75,12 @@ core::arch::global_asm!(r"
         cli
         xor ebp, ebp
         mov esp, _lambix_early_stack
-        add esp, 4096
-
-        lgdt {gdt}
+        add esp, 16384
 
         push ebx
         push eax
         push ebp
-        jmp _start_gdt
-    ",
-    gdt = sym crate::gdt::EARLY_GDT,
-);
-
-core::arch::global_asm!("
-    .text
-    .global _start_gdt
-    _start_gdt:
-    jmp {start}
-    // ljmp $0x08,${start}
+        jmp {start}
     ",
     start = sym crate::boot_start,
-    // options(att_syntax)
 );
