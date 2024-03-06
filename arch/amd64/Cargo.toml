@@ -1,5 +1,5 @@
 [package]
-name = "builtins_shared"
+name = "arch_amd64"
 version = "0.1.0"
 edition = "2021"
 

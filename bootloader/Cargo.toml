@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arch_amd64 = { path = "../arch/amd64" }
 elf = { version = "0.7.4", default-features = false }
 
 [build-dependencies]
 build_utils = { path = "../build_utils"}
+

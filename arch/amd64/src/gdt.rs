@@ -9,15 +9,23 @@ pub struct GlobalDescriptorTable {
 }
 
 impl GlobalDescriptorTable {
-    const EARLY_GDT_CODE: u32 = 0x08;
-    const EARLY_GDT_DATA: u32 = 0x10;
+    pub const EARLY_GDT_CODE: u32 = 0x08;
+    pub const EARLY_GDT_DATA: u32 = 0x10;
+
+    pub const fn new(code: CodeDescriptor, data: DataDescriptor) -> Self {
+        Self {
+            null: 0,
+            code: code.descriptor(),
+            data: data.descriptor(),
+        }
+    }
 
     pub fn load_gdt(&'static self) {
         #[derive(Debug)]
         #[repr(C, packed)]
-        struct GlobalDescriptorTableRegister(u16, u32);
+        struct Register(u16, u32);
 
-        let register = GlobalDescriptorTableRegister(
+        let register = Register(
             core::mem::size_of::<Self>() as u16,
             self as *const _ as usize as _,
         );
@@ -38,9 +46,3 @@ impl GlobalDescriptorTable {
         };
     }
 }
-
-pub static EARLY_GDT: GlobalDescriptorTable = GlobalDescriptorTable {
-    null: 0,
-    code: CodeDescriptor::new(0, 0xfffff).readable().descriptor(),
-    data: DataDescriptor::new(0, 0xfffff).writable().descriptor(),
-};

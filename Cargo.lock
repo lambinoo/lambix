@@ -3,19 +3,20 @@
 version = 3
 
 [[package]]
+name = "arch_amd64"
+version = "0.1.0"
+
+[[package]]
 name = "bootloader"
 version = "0.1.0"
 dependencies = [
+ "arch_amd64",
  "build_utils",
  "elf",
 ]
 
 [[package]]
 name = "build_utils"
-version = "0.1.0"
-
-[[package]]
-name = "builtins_shared"
 version = "0.1.0"
 
 [[package]]
@@ -27,6 +28,3 @@ checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 [[package]]
 name = "kernel"
 version = "0.1.0"
-dependencies = [
- "builtins_shared",
-]

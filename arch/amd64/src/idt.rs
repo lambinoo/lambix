@@ -298,7 +298,7 @@ pub struct IDT {
     user_defined_252: Interrupt,
     user_defined_253: Interrupt,
     user_defined_254: Interrupt,
-    user_defined_255: Interrupt
+    user_defined_255: Interrupt,
 }
 
 impl IDT {
@@ -306,7 +306,10 @@ impl IDT {
         #[derive(Debug)]
         #[repr(C, packed)]
         struct Register(u16, u32);
-        let register = Register(core::mem::size_of::<Self>() as u16, self as *const _ as u32);
+        let register = Register(
+            core::mem::size_of::<Self>() as u16,
+            self as *const _ as usize as _,
+        );
 
         unsafe {
             core::arch::asm!("lidt [{}]", in(reg) &register);
@@ -324,6 +327,4 @@ extern "x86-interrupt" fn default_handler() {
     handler_body(None);
 }
 
-fn handler_body(error_code: Option<u32>) {
-    println!("{:?}", error_code);
-}
+fn handler_body(error_code: Option<u32>) {}
