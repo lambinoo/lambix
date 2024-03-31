@@ -1,7 +1,7 @@
 use core::ffi::CStr;
 use core::fmt::Debug;
 use core::mem::{align_of, size_of};
-use core::ops::Deref;
+use core::ops::{Deref, Range};
 use core::ptr::NonNull;
 use core::slice::Chunks;
 
@@ -41,8 +41,17 @@ impl BootInformation {
         unsafe { core::slice::from_raw_parts(ptr as *const u8, self.total_size as usize) }
     }
 
+    pub fn memory_map(&self) -> Option<MemoryMap<'_>> {
+        for tag in self.tags() {
+            if let Tag::MemoryMap(map) = tag {
+                return Some(map);
+            }
+        }
+        None
+    }
+
     /// Returns an iterator over the different information tags
-    pub fn iter(&self) -> TagIter {
+    pub fn tags(&self) -> TagIter {
         TagIter {
             buffer: self.as_bytes(),
             cursor: core::mem::size_of::<Self>(),
@@ -104,17 +113,29 @@ impl MemoryMap<'_> {
 
 #[derive(Clone, Copy)]
 pub struct MemoryRange {
-    base: u64,
-    size: u64,
+    pub base: u64,
+    pub size: u64,
 }
 
 impl MemoryRange {
-    pub fn base_as_ptr(&self) -> Option<*const ()> {
-        usize::try_from(self.base).ok().map(|ptr| ptr as *const ())
+    pub fn as_range(&self) -> Range<u64> {
+        Range {
+            start: self.base,
+            end: self.base + self.size,
+        }
     }
 
-    pub fn end(&self) -> Option<u64> {
-        self.base.checked_add(self.size)
+    pub fn as_ptr_range<T>(&self) -> Option<Range<*const T>> {
+        usize::try_from(self.base)
+            .ok()
+            .map(|base| {
+                usize::try_from(self.size)
+                    .ok()
+                    .map(|size| (base, base + size))
+            })
+            .flatten()
+            .map(|(start, end)| (start as *const T, end as *const T))
+            .map(|(start, end)| Range { start, end })
     }
 }
 
@@ -128,7 +149,7 @@ impl Debug for MemoryRange {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MemoryInfo {
     Available(MemoryRange),
     Reserved(MemoryRange),
@@ -161,6 +182,7 @@ impl MemoryInfo {
     const BAD_RAM: u32 = 5;
 }
 
+#[derive(Debug)]
 pub struct MemoryInfoIter<'a> {
     chunks: Chunks<'a, u8>,
 }

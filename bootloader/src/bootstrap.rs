@@ -66,7 +66,7 @@ static HEADER: MultibootHeader = MultibootHeader::new();
 
 core::arch::global_asm!(r"
     .global _lambix_early_stack
-    .comm _lambix_early_stack, 16384, 16
+    .comm _lambix_early_stack, 32768, 16
 
     .text
     .global _start
@@ -75,7 +75,7 @@ core::arch::global_asm!(r"
         cli
         xor ebp, ebp
         mov esp, _lambix_early_stack
-        add esp, 16384
+        add esp, 32768
 
         push ebx
         push eax

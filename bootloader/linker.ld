@@ -2,6 +2,8 @@ ENTRY(_start)
 
 SECTIONS {
     . = 2M;
+    bootloader_start = .;
+    
     .multiboot2 : {
         KEEP(*(.multiboot2))
     }
@@ -32,6 +34,5 @@ SECTIONS {
         lambix_kernel_start = .;
         LONG(0)
     }
-    kernel_end_addr = .;
 }
 
