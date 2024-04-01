@@ -13,7 +13,7 @@ pub struct BootInformation {
 }
 
 impl BootInformation {
-    const BOOT_MAGIC: u32 = 0x36d76289;
+    pub const BOOT_MAGIC: u32 = 0x36d76289;
 
     /// Verifies the magic against the expected value, and returns boot information after
     /// some basic checks around the pointer's validity. This includes checking for alignment

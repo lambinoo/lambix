@@ -1,12 +1,6 @@
-use core::{
-    ops::{Range, RangeBounds},
-    ptr::addr_of,
-};
+use core::{ops::Range, ptr::addr_of};
 
-use crate::{
-    multiboot::{MemoryInfo, MemoryInfoIter},
-    EARLY_GDT,
-};
+use arch_amd64::multiboot2::{BootInformation, MemoryInfo, MemoryInfoIter};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -66,19 +60,28 @@ pub fn get_available_memory<'a>(
         .next()
 }
 
-pub fn exec_long_mode(entrypoint: *const u8, stack: &mut [u8]) -> ! {
-    let range = stack.as_ptr_range();
+pub fn exec_long_mode(
+    boot_info: *const BootInformation,
+    entrypoint: *const u8,
+    stack: &mut [u8],
+) -> ! {
+    let range: Range<*const u8> = stack.as_ptr_range();
 
     unsafe {
         core::arch::asm!(
+            // Enable CR4.PAE and global pages
             "mov eax, cr4",
             "bts eax, 5",
             "bts eax, 7",
             "mov cr4, eax",
+
+            // Enable long mode
             "mov ecx, 0xc0000080",
             "rdmsr",
             "bts eax, 8",
             "wrmsr",
+
+            // Enable paging
             "mov eax, cr0",
             "bts eax, 31",
             "mov cr0, eax",
@@ -92,6 +95,7 @@ pub fn exec_long_mode(entrypoint: *const u8, stack: &mut [u8]) -> ! {
             "xor %ebp, %ebp",
             "ljmp $0x18,$5f",
             "5: jmp *{entry}",
+            in("edi") boot_info,
             s = in(reg) range.end,
             entry = in(reg) entrypoint,
             options(att_syntax, noreturn)
