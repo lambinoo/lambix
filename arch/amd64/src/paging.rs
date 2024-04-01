@@ -8,7 +8,7 @@ pub struct PagingTable {
 }
 
 impl PagingTable {
-    pub const MAX_INDEX: usize = PAGING_TABLE_SIZE;
+    pub const MAX_INDEX: usize = PAGING_TABLE_SIZE - 1;
 
     pub const fn new() -> Self {
         // We are just using this, so we can initialize this function in a const environment

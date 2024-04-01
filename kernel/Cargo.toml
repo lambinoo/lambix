@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 arch_amd64 = { version = "0.1.0", path = "../arch/amd64" }
+bootloader_types = { version = "0.1.0", path = "../bootloader_types" }
 
 [build-dependencies]
 build_utils = { version = "0.1.0", path = "../build_utils" }

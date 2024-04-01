@@ -5,9 +5,9 @@
 #[macro_use]
 mod early_println;
 
-use core::{arch::asm, panic::PanicInfo};
+use core::{arch::asm, panic::PanicInfo, ptr::NonNull};
 
-use arch_amd64::multiboot2::BootInformation;
+use bootloader_types::KernelInformation;
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
@@ -18,17 +18,19 @@ fn panic_handler(info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-extern "C" fn _start(boot_info: u32) -> ! {
-    early_println!("done");
+extern "C" fn _start(kernel_info_ptr: u32) -> ! {
+    early_println!("done.\n");
 
-    early_println!("Found boot information at 0x{:x}", boot_info);
+    early_println!("Found kernel information at 0x{:x}", kernel_info_ptr);
 
-    let boot_info = usize::try_from(boot_info).unwrap();
-    let boot_info =
-        unsafe { BootInformation::from_ptr(boot_info as *mut _, BootInformation::BOOT_MAGIC) }
-            .unwrap();
+    let kernel_info = unsafe {
+        let info_ptr =
+            NonNull::new(usize::try_from(kernel_info_ptr).unwrap() as *mut KernelInformation)
+                .expect("Invalid kernel information passed");
+        info_ptr.as_ref()
+    };
 
-    for mem in boot_info.memory_map().unwrap().iter() {
+    for mem in kernel_info.boot_info().memory_map().unwrap().iter() {
         early_println!("{:?}", mem);
     }
 

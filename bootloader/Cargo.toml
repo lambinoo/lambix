@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 arch_amd64 = { path = "../arch/amd64" }
+bootloader_types = { version = "0.1.0", path = "../bootloader_types" }
 elf = { version = "0.7.4", default-features = false }
 
 [build-dependencies]

@@ -1,25 +1,25 @@
 #![no_std]
 #![no_main]
 #![feature(format_args_nl)]
+#![feature(pointer_is_aligned_to)]
 
 use core::mem::size_of;
 
 use arch_amd64::{
     descriptors::{CodeDescriptor, DataDescriptor},
     gdt::GlobalDescriptorTable,
-    multiboot2::BootInformation,
 };
 use elf::abi::{R_X86_64_RELATIVE, SHT_RELA};
 
-use crate::identity_paging::setup_identity_paging;
+use bootloader_types::{multiboot2::BootInformation, KernelInformation};
 
 #[macro_use]
 mod serial_print;
 mod panic;
 
 mod bootstrap;
-mod identity_paging;
 mod kernel_loader;
+mod paging;
 
 #[no_mangle]
 pub extern "C" fn boot_start(
@@ -54,17 +54,19 @@ pub extern "C" fn boot_start(
         .flatten()
         .expect("Can't fit ELF payload in memory");
 
+    let alignment = segments
+        .iter()
+        .filter(|s| s.p_type == elf::abi::PT_LOAD)
+        .filter_map(|s| usize::try_from(s.p_align).ok())
+        .chain(core::iter::once(4096))
+        .max()
+        .expect("Cannot discovery needed alignment for embedded ELF kernel");
     println!("Need {} bytes to unpack the kernel", needed_memory);
 
-    let mem_map = boot_info.memory_map().unwrap();
-    let kernel_destination = kernel_loader::get_available_memory(
-        mem_map.iter(),
-        needed_memory,
-        &[boot_info.as_bytes().as_ptr_range()],
-    )
-    .expect("Could not find a memory area suitable for unpacking the kernel");
+    let allocated_memory = paging::setup_kernel_memory(boot_info, needed_memory, alignment);
 
-    // TODO(lamb): We must honor the alignment field when we start needed it, as we might break the kernel
+    let kernel_destination = allocated_memory.kernel;
+
     for segment in segments.iter() {
         if segment.p_type == elf::abi::PT_LOAD {
             let segment_data = elf
@@ -75,15 +77,18 @@ pub extern "C" fn boot_start(
             let filesz = usize::try_from(segment.p_filesz).unwrap();
             let memsz = usize::try_from(segment.p_memsz).unwrap();
 
-            kernel_destination[vaddr..vaddr + memsz].fill(0);
             kernel_destination[vaddr..vaddr + filesz].copy_from_slice(segment_data);
+            if memsz >= filesz {
+                kernel_destination[vaddr + filesz..vaddr + memsz].fill(0);
+            } else {
+                panic!("Invalid ELF header");
+            }
         }
     }
 
     for section in elf.section_headers().unwrap() {
         if section.sh_type == SHT_RELA {
             let load_address = kernel_destination.as_ptr() as i64;
-
             for rela in elf.section_data_as_relas(&section).unwrap() {
                 match rela.r_type {
                     R_X86_64_RELATIVE => {
@@ -101,16 +106,6 @@ pub extern "C" fn boot_start(
         }
     }
 
-    let stack = kernel_loader::get_available_memory(
-        mem_map.iter(),
-        4096 * 4,
-        &[
-            kernel_destination.as_ptr_range(),
-            boot_info.as_bytes().as_ptr_range(),
-        ],
-    )
-    .expect("Could not allocate a stack for the kernel");
-
     println!(
         "Kernel has been extracted at {:?}",
         kernel_destination.as_ptr()
@@ -121,15 +116,17 @@ pub extern "C" fn boot_start(
     println!(
         "Entrypoint at {:?}, stack at {:?}",
         entrypoint,
-        stack.as_ptr_range()
+        allocated_memory.stack.as_ptr_range()
     );
 
-    print!("Setting up identity paging.. ");
-    setup_identity_paging();
-    println!("done.");
+    let kernel_information = KernelInformation::new(
+        boot_info,
+        kernel_destination.as_ptr_range(),
+        allocated_memory.stack.as_ptr_range(),
+    );
 
     print!("Jumping to extracted kernel.. ");
-    kernel_loader::exec_long_mode(multiboot_header_ptr, entrypoint, stack);
+    kernel_loader::exec_long_mode(&kernel_information, entrypoint, allocated_memory.stack);
 }
 
 pub static EARLY_GDT: GlobalDescriptorTable = GlobalDescriptorTable::new(

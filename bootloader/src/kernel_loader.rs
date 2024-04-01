@@ -1,6 +1,9 @@
 use core::{ops::Range, ptr::addr_of};
 
-use arch_amd64::multiboot2::{BootInformation, MemoryInfo, MemoryInfoIter};
+use bootloader_types::{
+    multiboot2::{MemoryInfo, MemoryInfoIter},
+    KernelInformation,
+};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -31,6 +34,7 @@ pub fn get_embedded_kernel() -> Option<&'static [u8]> {
 pub fn get_available_memory<'a>(
     mem_map: MemoryInfoIter<'a>,
     needed_memory: usize,
+    align: usize,
     excluded_ranges: &[Range<*const u8>],
 ) -> Option<&'static mut [u8]> {
     let kernel = get_embedded_kernel().expect("Failed to get embedded kernel");
@@ -44,24 +48,39 @@ pub fn get_available_memory<'a>(
         .filter(|m| matches!(m, MemoryInfo::Available(_)))
         .filter_map(|m| m.as_ptr_range::<u8>())
         .filter(|range| !range.contains(&core::ptr::null()))
-        .filter_map(|range| unsafe {
-            Some(core::slice::from_raw_parts_mut(
-                range.start as *mut u8,
-                usize::try_from(range.start.offset_from(range.end)).ok()?,
-            ))
+        .flat_map(|full_range| {
+            let mut start = full_range
+                .start
+                .wrapping_add(full_range.start.align_offset(align));
+            core::iter::from_fn(move || {
+                let mut end = start.wrapping_add(needed_memory);
+                end = end.wrapping_add(full_range.start.align_offset(align));
+
+                let range = Range { start, end };
+                if full_range.contains(&range.start) && full_range.contains(&range.end) {
+                    start = end;
+                    Some(range)
+                } else {
+                    None
+                }
+            })
         })
-        .flat_map(|buffer| buffer.chunks_exact_mut(needed_memory))
-        .filter(move |chunk| {
-            let range = chunk.as_ptr_range();
+        .filter(move |range| {
             !core::iter::once(&exclude_range)
                 .chain(excluded_ranges.iter())
                 .any(|excluded| range.contains(&excluded.start) || range.contains(&excluded.end))
+        })
+        .map(|range| unsafe {
+            core::slice::from_raw_parts_mut(
+                range.start as _,
+                range.end as usize - range.start as usize,
+            )
         })
         .next()
 }
 
 pub fn exec_long_mode(
-    boot_info: *const BootInformation,
+    kernel_info: &KernelInformation,
     entrypoint: *const u8,
     stack: &mut [u8],
 ) -> ! {
@@ -95,7 +114,7 @@ pub fn exec_long_mode(
             "xor %ebp, %ebp",
             "ljmp $0x18,$5f",
             "5: jmp *{entry}",
-            in("edi") boot_info,
+            in("edi") kernel_info,
             s = in(reg) range.end,
             entry = in(reg) entrypoint,
             options(att_syntax, noreturn)

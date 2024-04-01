@@ -138,6 +138,7 @@ impl MemoryRange {
             })
             .map(|(start, end)| (start as *const T, end as *const T))
             .map(|(start, end)| Range { start, end })
+            .filter(|range| range.end >= range.start)
     }
 }
 

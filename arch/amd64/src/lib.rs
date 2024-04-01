@@ -5,5 +5,4 @@
 pub mod descriptors;
 pub mod gdt;
 pub mod idt;
-pub mod multiboot2;
 pub mod paging;
