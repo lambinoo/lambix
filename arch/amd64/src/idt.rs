@@ -317,14 +317,10 @@ impl IDT {
     }
 }
 
-extern "x86-interrupt" fn default_error_code_handler(error_code: u32) {
+extern "x86-interrupt" fn default_error_code_handler(_error_code: u32) {
     loop {}
-    handler_body(Some(error_code))
 }
 
 extern "x86-interrupt" fn default_handler() {
     loop {}
-    handler_body(None);
 }
-
-fn handler_body(error_code: Option<u32>) {}

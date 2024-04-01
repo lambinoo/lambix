@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(format_args_nl)]
 
-use core::{mem::size_of, ptr::addr_of};
+use core::mem::size_of;
 
 use arch_amd64::{
     descriptors::{CodeDescriptor, DataDescriptor},
