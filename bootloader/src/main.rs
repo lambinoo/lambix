@@ -7,13 +7,11 @@ use core::{mem::size_of, ptr::addr_of};
 use arch_amd64::{
     descriptors::{CodeDescriptor, DataDescriptor},
     gdt::GlobalDescriptorTable,
+    multiboot2::BootInformation,
 };
-use elf::abi::{DT_RELA, R_X86_64_RELATIVE, SHT_RELA};
+use elf::abi::{R_X86_64_RELATIVE, SHT_RELA};
 
-use crate::{
-    identity_paging::setup_identity_paging,
-    multiboot::{BootInformation, MemoryInfo},
-};
+use crate::identity_paging::setup_identity_paging;
 
 #[macro_use]
 mod serial_print;
@@ -22,13 +20,14 @@ mod panic;
 mod bootstrap;
 mod identity_paging;
 mod kernel_loader;
-mod multiboot;
 
 #[no_mangle]
 pub extern "C" fn boot_start(
     multiboot_magic: u32,
     multiboot_header_ptr: *mut BootInformation,
 ) -> ! {
+    println!("Found boot information at {multiboot_header_ptr:?}");
+
     EARLY_GDT.load_gdt();
     EARLY_GDT.set_protected_mode();
     println!("GDT has been applied");
@@ -55,11 +54,17 @@ pub extern "C" fn boot_start(
         .flatten()
         .expect("Can't fit ELF payload in memory");
 
-    let mem_map = boot_info.memory_map().unwrap();
-    let kernel_destination =
-        kernel_loader::get_available_memory(mem_map.iter(), needed_memory, &[])
-            .expect("Could not find a memory area suitable for unpacking the kernel");
+    println!("Need {} bytes to unpack the kernel", needed_memory);
 
+    let mem_map = boot_info.memory_map().unwrap();
+    let kernel_destination = kernel_loader::get_available_memory(
+        mem_map.iter(),
+        needed_memory,
+        &[boot_info.as_bytes().as_ptr_range()],
+    )
+    .expect("Could not find a memory area suitable for unpacking the kernel");
+
+    // TODO(lamb): We must honor the alignment field when we start needed it, as we might break the kernel
     for segment in segments.iter() {
         if segment.p_type == elf::abi::PT_LOAD {
             let segment_data = elf
@@ -99,7 +104,10 @@ pub extern "C" fn boot_start(
     let stack = kernel_loader::get_available_memory(
         mem_map.iter(),
         4096 * 4,
-        &[kernel_destination.as_ptr_range()],
+        &[
+            kernel_destination.as_ptr_range(),
+            boot_info.as_bytes().as_ptr_range(),
+        ],
     )
     .expect("Could not allocate a stack for the kernel");
 
@@ -121,7 +129,7 @@ pub extern "C" fn boot_start(
     println!("done.");
 
     print!("Jumping to extracted kernel.. ");
-    kernel_loader::exec_long_mode(entrypoint, stack);
+    kernel_loader::exec_long_mode(multiboot_header_ptr, entrypoint, stack);
 }
 
 pub static EARLY_GDT: GlobalDescriptorTable = GlobalDescriptorTable::new(
