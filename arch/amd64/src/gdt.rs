@@ -33,8 +33,8 @@ impl GlobalDescriptorTable {
     pub const fn new(code: CodeDescriptor, data: DataDescriptor) -> Self {
         Self {
             null: 0,
-            code: code,
-            data: data,
+            code,
+            data,
             code64: Code64Descriptor::new(0, 0),
             data64: Data64Descriptor::new(0, 0),
         }

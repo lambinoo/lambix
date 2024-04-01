@@ -17,6 +17,9 @@ impl BootInformation {
 
     /// Verifies the magic against the expected value, and returns boot information after
     /// some basic checks around the pointer's validity. This includes checking for alignment
+    ///
+    /// # Safety
+    /// Make sure the pointer comes from a valid source. This function will verify alignment
     pub unsafe fn from_ptr(
         ptr: *mut BootInformation,
         magic: u32,
@@ -96,7 +99,7 @@ impl MemoryMap<'_> {
         let entry_version: [u8; size_of::<u32>()] = entry_version.try_into().ok()?;
 
         let map = MemoryMap {
-            entry_size: u32::from_ne_bytes(entry_size) as usize,
+            entry_size: usize::try_from(u32::from_ne_bytes(entry_size)).unwrap(),
             entry_version: u32::from_ne_bytes(entry_version),
             data: buffer.get(size_of::<u32>() * 2..)?,
         };
@@ -106,7 +109,7 @@ impl MemoryMap<'_> {
 
     pub fn iter(&self) -> MemoryInfoIter<'_> {
         MemoryInfoIter {
-            chunks: self.data.chunks(self.entry_size as usize),
+            chunks: self.data.chunks(self.entry_size),
         }
     }
 }
@@ -128,12 +131,11 @@ impl MemoryRange {
     pub fn as_ptr_range<T>(&self) -> Option<Range<*const T>> {
         usize::try_from(self.base)
             .ok()
-            .map(|base| {
+            .and_then(|base| {
                 usize::try_from(self.size)
                     .ok()
                     .map(|size| (base, base + size))
             })
-            .flatten()
             .map(|(start, end)| (start as *const T, end as *const T))
             .map(|(start, end)| Range { start, end })
     }
@@ -212,13 +214,13 @@ impl Iterator for MemoryInfoIter<'_> {
                 MemoryInfo::ACPI_RECLAIMABLE => MemoryInfo::ACPIReclaimable(data),
                 MemoryInfo::MEMORY_NVS => MemoryInfo::NVS(data),
                 MemoryInfo::BAD_RAM => MemoryInfo::BadRam(data),
-                v @ _ => MemoryInfo::Unknown(data, v),
+                v => MemoryInfo::Unknown(data, v),
             };
 
             Some(memory_info)
         };
 
-        self.chunks.next().map(parse_buffer).flatten()
+        self.chunks.next().and_then(parse_buffer)
     }
 }
 
@@ -244,15 +246,14 @@ impl<'a> TagIter<'a> {
 
         self.buffer
             .get(tag_start..tag_end)
-            .map(|tag_data| match header.typ {
+            .and_then(|tag_data| match header.typ {
                 TagHeader::COMMAND_LINE => {
                     let cmd_line = CStr::from_bytes_until_nul(tag_data).unwrap();
                     Some(Tag::CommandLine(cmd_line))
                 }
-                TagHeader::MEMORY_MAP => MemoryMap::from_slice(tag_data).map(|m| Tag::MemoryMap(m)),
+                TagHeader::MEMORY_MAP => MemoryMap::from_slice(tag_data).map(Tag::MemoryMap),
                 _ => None,
             })
-            .flatten()
             .unwrap_or(Tag::Unknown(header.typ))
     }
 }

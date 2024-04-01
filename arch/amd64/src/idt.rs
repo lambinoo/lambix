@@ -14,8 +14,11 @@ pub struct InterruptWithErrorCode {
 
 impl InterruptWithErrorCode {
     pub fn new(handler: extern "x86-interrupt" fn(u32)) -> Self {
-        let inner =
-            InterruptDescriptor::new(InterruptDescriptor::INTERRUPT_GATE, handler as u32, 8);
+        let inner = InterruptDescriptor::new(
+            InterruptDescriptor::INTERRUPT_GATE,
+            u32::try_from(handler as usize).unwrap(),
+            8,
+        );
 
         Self { inner }
     }
@@ -35,8 +38,11 @@ pub struct Interrupt {
 
 impl Interrupt {
     pub fn new(handler: extern "x86-interrupt" fn()) -> Self {
-        let inner =
-            InterruptDescriptor::new(InterruptDescriptor::INTERRUPT_GATE, handler as u32, 8);
+        let inner = InterruptDescriptor::new(
+            InterruptDescriptor::INTERRUPT_GATE,
+            u32::try_from(handler as usize).unwrap(),
+            8,
+        );
 
         Self { inner }
     }

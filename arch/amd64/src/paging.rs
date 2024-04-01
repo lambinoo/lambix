@@ -8,12 +8,15 @@ pub struct PagingTable {
 }
 
 impl PagingTable {
-    const DEFAULT: AtomicU64 = AtomicU64::new(0);
     pub const MAX_INDEX: usize = PAGING_TABLE_SIZE;
 
     pub const fn new() -> Self {
+        // We are just using this, so we can initialize this function in a const environment
+        #[allow(clippy::declare_interior_mutable_const)]
+        const DEFAULT: AtomicU64 = AtomicU64::new(0);
+
         Self {
-            inner: [Self::DEFAULT; PAGING_TABLE_SIZE],
+            inner: [DEFAULT; PAGING_TABLE_SIZE],
         }
     }
 
@@ -23,5 +26,11 @@ impl PagingTable {
 
     pub fn fetch(&self, idx: usize) -> u64 {
         self.inner[idx].load(Ordering::Acquire)
+    }
+}
+
+impl Default for PagingTable {
+    fn default() -> Self {
+        Self::new()
     }
 }
