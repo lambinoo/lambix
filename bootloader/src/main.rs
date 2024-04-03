@@ -11,8 +11,6 @@ use arch_amd64::{
 };
 use elf::abi::{R_X86_64_RELATIVE, SHT_RELA};
 
-use bootloader_types::{multiboot2::BootInformation, KernelInformation};
-
 #[macro_use]
 mod serial_print;
 mod panic;
@@ -20,6 +18,8 @@ mod panic;
 mod bootstrap;
 mod kernel_loader;
 mod paging;
+
+use bootloader::{multiboot2::BootInformation, KernelInformation};
 
 #[no_mangle]
 pub extern "C" fn boot_start(
@@ -65,8 +65,6 @@ pub extern "C" fn boot_start(
 
     let allocated_memory = paging::setup_kernel_memory(boot_info, needed_memory, alignment);
 
-    let kernel_destination = allocated_memory.kernel;
-
     for segment in segments.iter() {
         if segment.p_type == elf::abi::PT_LOAD {
             let segment_data = elf
@@ -77,9 +75,9 @@ pub extern "C" fn boot_start(
             let filesz = usize::try_from(segment.p_filesz).unwrap();
             let memsz = usize::try_from(segment.p_memsz).unwrap();
 
-            kernel_destination[vaddr..vaddr + filesz].copy_from_slice(segment_data);
+            allocated_memory.kernel[vaddr..vaddr + filesz].copy_from_slice(segment_data);
             if memsz >= filesz {
-                kernel_destination[vaddr + filesz..vaddr + memsz].fill(0);
+                allocated_memory.kernel[vaddr + filesz..vaddr + memsz].fill(0);
             } else {
                 panic!("Invalid ELF header");
             }
@@ -88,7 +86,7 @@ pub extern "C" fn boot_start(
 
     for section in elf.section_headers().unwrap() {
         if section.sh_type == SHT_RELA {
-            let load_address = kernel_destination.as_ptr() as i64;
+            let load_address = allocated_memory.kernel_virt.start as i64;
             for rela in elf.section_data_as_relas(&section).unwrap() {
                 match rela.r_type {
                     R_X86_64_RELATIVE => {
@@ -96,7 +94,7 @@ pub extern "C" fn boot_start(
                         let computed_value = load_address + i64::try_from(rela.r_addend).unwrap();
 
                         let relocated_data =
-                            &mut kernel_destination[offset..offset + size_of::<u64>()];
+                            &mut allocated_memory.kernel[offset..offset + size_of::<u64>()];
                         relocated_data.copy_from_slice(&u64::to_ne_bytes(computed_value as u64));
                     }
 
@@ -107,26 +105,19 @@ pub extern "C" fn boot_start(
     }
 
     println!(
-        "Kernel has been extracted at {:?}",
-        kernel_destination.as_ptr()
-    );
-
-    let ventry = usize::try_from(elf.ehdr.e_entry).unwrap();
-    let entrypoint = kernel_destination[ventry..ventry].as_ptr() as *const u8;
-    println!(
-        "Entrypoint at {:?}, stack at {:?}",
-        entrypoint,
-        allocated_memory.stack.as_ptr_range()
+        "Kernel has been extracted at physical address {:?}",
+        allocated_memory.kernel.as_ptr()
     );
 
     let kernel_information = KernelInformation::new(
         boot_info,
-        kernel_destination.as_ptr_range(),
+        allocated_memory.kernel.as_ptr_range(),
         allocated_memory.stack.as_ptr_range(),
+        allocated_memory.kernel_virt.clone(),
+        allocated_memory.stack_virt.clone(),
     );
 
-    print!("Jumping to extracted kernel.. ");
-    kernel_loader::exec_long_mode(&kernel_information, entrypoint, allocated_memory.stack);
+    kernel_loader::exec_long_mode(&kernel_information, &allocated_memory, elf.ehdr.e_entry);
 }
 
 pub static EARLY_GDT: GlobalDescriptorTable = GlobalDescriptorTable::new(

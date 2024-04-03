@@ -41,7 +41,7 @@ macro_rules! early_print {
 }
 
 #[macro_export]
-macro_rules! early_println {
+macro_rules! println {
     () => {
         crate::early_println::IO_PORT_PRINT.write_char('\n');
     };

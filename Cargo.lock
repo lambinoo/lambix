@@ -11,14 +11,9 @@ name = "bootloader"
 version = "0.1.0"
 dependencies = [
  "arch_amd64",
- "bootloader_types",
  "build_utils",
  "elf",
 ]
-
-[[package]]
-name = "bootloader_types"
-version = "0.1.0"
 
 [[package]]
 name = "build_utils"
@@ -35,6 +30,6 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "arch_amd64",
- "bootloader_types",
+ "bootloader",
  "build_utils",
 ]

@@ -1,9 +1,11 @@
 use core::{ops::Range, ptr::addr_of};
 
-use bootloader_types::{
+use bootloader::{
     multiboot2::{MemoryInfo, MemoryInfoIter},
     KernelInformation,
 };
+
+use crate::paging::KernelMemoryAlloc;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -47,24 +49,28 @@ pub fn get_available_memory<'a>(
     mem_map
         .filter(|m| matches!(m, MemoryInfo::Available(_)))
         .filter_map(|m| m.as_ptr_range::<u8>())
-        .filter(|range| !range.contains(&core::ptr::null()))
         .flat_map(|full_range| {
-            let mut start = full_range
+            let mut aligned_start = full_range
                 .start
                 .wrapping_add(full_range.start.align_offset(align));
-            core::iter::from_fn(move || {
-                let mut end = start.wrapping_add(needed_memory);
-                end = end.wrapping_add(full_range.start.align_offset(align));
 
-                let range = Range { start, end };
+            core::iter::from_fn(move || {
+                let mut end = aligned_start.wrapping_add(needed_memory);
+                end = end.wrapping_add(end.align_offset(align));
+
+                let range = Range {
+                    start: aligned_start,
+                    end,
+                };
                 if full_range.contains(&range.start) && full_range.contains(&range.end) {
-                    start = end;
+                    aligned_start = end;
                     Some(range)
                 } else {
                     None
                 }
             })
         })
+        .filter(|range| !range.contains(&core::ptr::null()))
         .filter(move |range| {
             !core::iter::once(&exclude_range)
                 .chain(excluded_ranges.iter())
@@ -81,10 +87,17 @@ pub fn get_available_memory<'a>(
 
 pub fn exec_long_mode(
     kernel_info: &KernelInformation,
-    entrypoint: *const u8,
-    stack: &mut [u8],
+    kernel: &KernelMemoryAlloc,
+    entry_virt: u64,
 ) -> ! {
-    let range: Range<*const u8> = stack.as_ptr_range();
+    let stack_pointer = kernel.stack_virt.end;
+    let upper_entrypoint = kernel.kernel_virt.start + entry_virt;
+
+    println!(
+        "Kernel will be executed at 0x{:x} with stack 0x{:x}",
+        upper_entrypoint, stack_pointer
+    );
+    print!("Jumping to extracted kernel.. ");
 
     unsafe {
         core::arch::asm!(
@@ -110,13 +123,19 @@ pub fn exec_long_mode(
         );
 
         core::arch::asm!(
-            "mov {s}, %esp",
-            "xor %ebp, %ebp",
             "ljmp $0x18,$5f",
-            "5: jmp *{entry}",
+            ".code64",
+            // Setup kernel stack
+            "5: xorq %rbp, %rbp",
+            "movq (%edx), %rsp",
+            // Load kernel jump address
+            "movq (%ecx), %rcx",
+            // Jump to high address of the kernel
+            "jmpq *%rcx",
+            ".code32",
             in("edi") kernel_info,
-            s = in(reg) range.end,
-            entry = in(reg) entrypoint,
+            in("ecx") &upper_entrypoint,
+            in("edx") &stack_pointer,
             options(att_syntax, noreturn)
         )
     }
