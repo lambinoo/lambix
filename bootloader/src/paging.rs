@@ -21,6 +21,7 @@ static IDENTITY_TABLE: PagingTable = EMPTY_TABLE;
 const PRESENT_FLAG: u64 = 1;
 const RW_FLAG: u64 = 1 << 1;
 const PAGE_SIZE_FLAG: u64 = 1 << 7;
+const NX_FLAG: u64 = 1 << 63;
 
 pub struct KernelMemoryAlloc {
     pub kernel: &'static mut [u8],
@@ -56,8 +57,8 @@ pub fn setup_kernel_memory(
     )
     .expect("Not enough memory for a stack for the kernel");
 
-    let kernel_address = setup_mapping(&KERNEL_TABLE, KERNEL_TOP_INDEX, &kernel_memory);
-    let stack_address = setup_mapping(&STACK_TABLE, STACK_TOP_INDEX, &stack_memory);
+    let kernel_address = setup_mapping(&KERNEL_TABLE, KERNEL_TOP_INDEX, &kernel_memory, RW_FLAG);
+    let stack_address = setup_mapping(&STACK_TABLE, STACK_TOP_INDEX, &stack_memory, RW_FLAG);
     setup_identity_paging();
     apply_paging();
 
@@ -73,7 +74,7 @@ pub fn setup_kernel_memory(
     }
 }
 
-fn setup_mapping(pg_table_2mb: &PagingTable, high_index: usize, memory: &[u8]) -> u64 {
+fn setup_mapping(pg_table_2mb: &PagingTable, high_index: usize, memory: &[u8], flags: u64) -> u64 {
     let needed_allocations = memory.len().div_ceil(ALIGN_2MB);
     if needed_allocations >= PagingTable::MAX_INDEX {
         panic!("Kernel is too large, aborting");
@@ -81,7 +82,7 @@ fn setup_mapping(pg_table_2mb: &PagingTable, high_index: usize, memory: &[u8]) -
 
     for i in 0..needed_allocations {
         let address = (memory.as_ptr() as usize + ALIGN_2MB * i) as u64;
-        pg_table_2mb.store(i, address | PRESENT_FLAG | RW_FLAG | PAGE_SIZE_FLAG);
+        pg_table_2mb.store(i, address | PRESENT_FLAG | PAGE_SIZE_FLAG | flags);
     }
 
     HIGH_TABLE.store(
