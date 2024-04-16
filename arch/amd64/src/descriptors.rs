@@ -20,11 +20,11 @@ impl core::fmt::Debug for Descriptor {
 }
 
 impl Descriptor {
-    const PRESENT: u32 = 1 << 15;
+    pub const PRESENT: u32 = 1 << 15;
     // const AVAILABLE: u32 = 1 << 20;
-    const LONG_MODE: u32 = 1 << 21;
-    const DEFAULT_OPERAND_SIZE: u32 = 1 << 22;
-    const GRANULARITY: u32 = 1 << 23;
+    pub const LONG_MODE: u32 = 1 << 21;
+    pub const DEFAULT_OPERAND_SIZE: u32 = 1 << 22;
+    pub const GRANULARITY: u32 = 1 << 23;
 
     pub const fn new(type_value: u64, base_address: u32, segment_limit: u32) -> Self {
         let base_address = base_address as u64;
@@ -139,23 +139,5 @@ impl Data64Descriptor {
             Descriptor::new(DataDescriptor::DATA_TYPE, base_address, segment_limit)
                 .with_flag(Descriptor::PRESENT),
         )
-    }
-}
-
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct InterruptDescriptor {
-    inner: Descriptor,
-}
-
-impl InterruptDescriptor {
-    pub const INTERRUPT_GATE: u64 = 0xe;
-    pub const TRAP_GATE: u64 = 0xf;
-
-    pub const fn new(selector_type: u64, code_segment_offset: u32, selector: u16) -> Self {
-        let inner = Descriptor::new(selector_type, code_segment_offset, selector as u32)
-            .with_flag(Descriptor::PRESENT);
-
-        Self { inner }
     }
 }

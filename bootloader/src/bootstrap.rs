@@ -45,7 +45,7 @@ impl MultibootHeader {
                     flags: 0,
                     size: (size_of::<TagHeader>() + size_of::<u32>() * requests.len()) as u32,
                 },
-                requests: requests,
+                requests,
             },
             end_tag: EndTag(TagHeader {
                 typ: 0,

@@ -1,4 +1,228 @@
-use crate::descriptors::InterruptDescriptor;
+use core::ops::Deref;
+
+use crate::println;
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct StackFrame {
+    rip: u64,
+    cs: u64,
+    rflags: u64,
+    rsp: u64,
+    ss: u64,
+}
+
+pub type HandlerType = unsafe extern "C" fn(*const StackFrame);
+pub type HandlerWithCodeType = unsafe extern "C" fn(*const StackFrame, u64);
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct InterruptHandler {
+    interrupt: HandlerType,
+}
+
+impl Deref for InterruptHandler {
+    type Target = HandlerType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.interrupt
+    }
+}
+
+impl InterruptHandler {
+    /// Marks a given function as a valid new interrupt handler. This should not be called manually,
+    /// but only be created through the interrupt_handler!() macro
+    ///
+    /// ```rust,ignore
+    /// interrupt_handler! my_handler() {
+    ///     println!("hello there");
+    /// };
+    /// ```
+    ///
+    /// # Safety
+    /// The function pointer passed to this function needs to be a valid interrupt handler
+    /// for the amd64 architecture.
+    ///
+    pub unsafe fn new(interrupt: HandlerType) -> Self {
+        Self { interrupt }
+    }
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct InterruptWithErrorCodeHandler {
+    interrupt: HandlerWithCodeType,
+}
+
+impl Deref for InterruptWithErrorCodeHandler {
+    type Target = HandlerWithCodeType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.interrupt
+    }
+}
+
+impl InterruptWithErrorCodeHandler {
+    /// Marks a given function as a valid new interrupt handler. This should not be called manually,
+    /// but only be created through the interrupt_handler!() macro
+    ///
+    /// ```rust,ignore
+    /// interrupt_handler! my_handler() {
+    ///     println!("hello there");
+    /// };
+    /// ```
+    ///
+    /// # Safety
+    /// The function pointer passed to this function needs to be a valid interrupt handler
+    /// for the amd64 architecture.
+    ///
+    pub unsafe fn new(interrupt: HandlerWithCodeType) -> Self {
+        Self { interrupt }
+    }
+}
+
+#[macro_export]
+macro_rules! interrupt_handler {
+    (fn $name:ident($stack:ident: $stacktype:ty) $impl:block) => {
+        unsafe {
+            #[naked]
+            pub unsafe extern "C" fn $name($stack: $stacktype) {
+                extern "C" fn __impl() {
+                    $impl
+                }
+
+                core::arch::asm!(
+                    "push rdi",
+                    "lea rdi, [rsp+8]",
+                    "push rsi",
+                    "push rdx",
+                    "push rcx",
+                    "push rbx",
+                    "push rax",
+                    "push r8",
+                    "push r9",
+                    "push r10",
+                    "push r11",
+                    "push r12",
+                    "push r13",
+                    "push r14",
+                    "push r15",
+                    "call {}",
+                    "pop r15",
+                    "pop r14",
+                    "pop r13",
+                    "pop r12",
+                    "pop r11",
+                    "pop r10",
+                    "pop r9",
+                    "pop r8",
+                    "pop rax",
+                    "pop rbx",
+                    "pop rcx",
+                    "pop rdx",
+                    "pop rsi",
+                    "pop rdi",
+                    "iret",
+                    sym __impl,
+                    options(noreturn)
+                )
+            }
+
+            $crate::idt::InterruptHandler::new($name)
+        }
+    };
+
+    (fn $name:ident($stack:ident: $stacktype:ty, $varname:ident: u64) $impl:block) => {
+        unsafe {
+            #[naked]
+            pub unsafe extern "C" fn $name($stack: $stacktype, $varname: u64) {
+                #[inline(always)]
+                extern "C" fn __impl($stack: $stacktype, $varname: u64) {
+                    $impl
+                }
+
+                core::arch::asm!(
+                    "push rdi",
+                    "push rsi",
+                    "lea rdi, [rsp+24]",
+                    "mov rsi, [rsp+16]",
+                    "push rdx",
+                    "push rcx",
+                    "push rbx",
+                    "push rax",
+                    "push r8",
+                    "push r9",
+                    "push r10",
+                    "push r11",
+                    "push r12",
+                    "push r13",
+                    "push r14",
+                    "push r15",
+                    "call {}",
+                    "pop r15",
+                    "pop r14",
+                    "pop r13",
+                    "pop r12",
+                    "pop r11",
+                    "pop r10",
+                    "pop r9",
+                    "pop r8",
+                    "pop rax",
+                    "pop rbx",
+                    "pop rcx",
+                    "pop rdx",
+                    "pop rsi",
+                    "pop rdi",
+                    "add rsp, 8",
+                    "iret",
+                    sym __impl,
+                    options(noreturn)
+                )
+            }
+
+            $crate::idt::InterruptWithErrorCodeHandler::new($name)
+        }
+    };
+}
+
+#[repr(transparent)]
+pub struct InterruptDescriptor {
+    inner: u128,
+}
+
+impl core::fmt::Debug for InterruptDescriptor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let value = u128::to_be_bytes(self.inner);
+        f.write_fmt(format_args!("{:x?}", &value))
+    }
+}
+
+impl InterruptDescriptor {
+    pub const GDT_CODE64: u128 = 0x18 << 16;
+    pub const PRESENT: u128 = 1 << 47;
+    pub const INTERRUPT_GATE: u128 = 0xe << 40;
+    pub const TRAP_GATE: u128 = 0xf << 40;
+
+    fn from_address(address: u128) -> Self {
+        let inner = (address & 0xffff)
+            | ((address & 0xffffffffffff0000) << 32)
+            | Self::GDT_CODE64
+            | Self::PRESENT
+            | Self::TRAP_GATE;
+
+        Self { inner }
+    }
+
+    pub fn from_handler(handler: InterruptHandler) -> Self {
+        let address = u128::try_from(*handler.deref() as usize).unwrap();
+        Self::from_address(address)
+    }
+
+    pub fn from_handler_with_error(handler: InterruptWithErrorCodeHandler) -> Self {
+        let address = u128::try_from(*handler.deref() as usize).unwrap();
+        Self::from_address(address)
+    }
+}
 
 #[derive(Default, Debug)]
 #[repr(transparent)]
@@ -13,49 +237,64 @@ pub struct InterruptWithErrorCode {
 }
 
 impl InterruptWithErrorCode {
-    pub fn new(handler: extern "x86-interrupt" fn(u32)) -> Self {
-        let inner = InterruptDescriptor::new(
-            InterruptDescriptor::INTERRUPT_GATE,
-            u32::try_from(handler as usize).unwrap(),
-            8,
-        );
-
-        Self { inner }
+    pub fn new(handler: InterruptDescriptor) -> Self {
+        Self { inner: handler }
     }
 }
 
 impl Default for InterruptWithErrorCode {
     fn default() -> Self {
-        Self::new(default_error_code_handler)
+        let handler = interrupt_handler!(
+            fn default_handler(stack_frame: *const StackFrame, error_code: u64) {
+                let cr2_value: usize;
+
+                unsafe {
+                    core::arch::asm!(
+                        "mov {}, cr2",
+                        out(reg) cr2_value
+                    );
+                    crate::println!(
+                        "\nInterrupt with error code: {:x?} {:x} (cr2 value: 0x{:x})",
+                        stack_frame.read(),
+                        error_code,
+                        cr2_value
+                    );
+                    core::arch::asm!("hlt");
+                    loop {}
+                };
+            }
+        );
+
+        Self::new(InterruptDescriptor::from_handler_with_error(handler))
     }
 }
 
 #[derive(Debug)]
-#[repr(transparent)]
+#[repr(C)]
 pub struct Interrupt {
     inner: InterruptDescriptor,
 }
 
 impl Interrupt {
-    pub fn new(handler: extern "x86-interrupt" fn()) -> Self {
-        let inner = InterruptDescriptor::new(
-            InterruptDescriptor::INTERRUPT_GATE,
-            u32::try_from(handler as usize).unwrap(),
-            8,
-        );
-
-        Self { inner }
+    pub fn new(handler: InterruptDescriptor) -> Self {
+        Self { inner: handler }
     }
 }
 
 impl Default for Interrupt {
     fn default() -> Self {
-        Self::new(default_handler)
+        let handler = interrupt_handler!(
+            fn default_handler(stack_frame: *const StackFrame) {
+                println!("Interrupt without error code");
+            }
+        );
+
+        Self::new(InterruptDescriptor::from_handler(handler))
     }
 }
 
 #[derive(Debug, Default)]
-#[repr(C)]
+#[repr(C, align(4096))]
 pub struct IDT {
     divide_by_zero: Interrupt,
     debug: Interrupt,
@@ -65,21 +304,21 @@ pub struct IDT {
     bound_range: Interrupt,
     invalid_opcode: Interrupt,
     device_not_available: Interrupt,
-    double_fault: InterruptWithErrorCode,
+    double_fault: u128,
     reserved_coprocessor_segment_overrun: ReservedInterrupt,
-    invalid_tss: InterruptWithErrorCode,
-    segment_not_present: InterruptWithErrorCode,
-    stack: InterruptWithErrorCode,
-    general_protection: InterruptWithErrorCode,
+    invalid_tss: ReservedInterrupt,
+    segment_not_present: u128,
+    stack: u128,
+    general_protection: u128,
     page_fault: InterruptWithErrorCode,
     reserved_15: ReservedInterrupt,
     x86_floating_point_exception_pending: Interrupt,
-    alignmnent_check: InterruptWithErrorCode,
+    alignmnent_check: u128,
     machine_check: Interrupt,
     simd_floating_point: Interrupt,
     reserved_20_28: [ReservedInterrupt; 9],
-    vmm_communication_exception: InterruptWithErrorCode,
-    security_exception: InterruptWithErrorCode,
+    vmm_communication_exception: u128,
+    security_exception: u128,
     reserved_31: ReservedInterrupt,
     user_defined_32: Interrupt,
     user_defined_33: Interrupt,
@@ -307,26 +546,31 @@ pub struct IDT {
     user_defined_255: Interrupt,
 }
 
+#[derive(Debug)]
+#[repr(C, packed)]
+pub struct Register(u16, usize);
+
 impl IDT {
-    pub fn load_idt(&self) {
-        #[derive(Debug)]
-        #[repr(C, packed)]
-        struct Register(u16, u32);
-        let register = Register(
+    pub fn register(&self) -> Register {
+        Register(
             core::mem::size_of::<Self>() as u16,
-            self as *const _ as usize as _,
-        );
+            self as *const _ as usize,
+        )
+    }
+
+    pub fn load_idt(&self) -> Register {
+        let mut register = self.register();
 
         unsafe {
-            core::arch::asm!("lidt [{}]", in(reg) &register);
+            core::arch::asm!(
+                "lidt [{}]",
+                "sidt [{}]",
+                "sti",
+                in(reg) &register,
+                in(reg) &mut register
+            );
         }
+
+        register
     }
-}
-
-extern "x86-interrupt" fn default_error_code_handler(_error_code: u32) {
-    loop {}
-}
-
-extern "x86-interrupt" fn default_handler() {
-    loop {}
 }

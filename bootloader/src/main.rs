@@ -12,7 +12,8 @@ use arch_amd64::{
 use elf::abi::{R_X86_64_RELATIVE, SHT_RELA};
 
 #[macro_use]
-mod serial_print;
+extern crate arch_amd64;
+
 mod panic;
 
 mod bootstrap;
@@ -113,8 +114,6 @@ pub extern "C" fn boot_start(
         boot_info,
         allocated_memory.kernel.as_ptr_range(),
         allocated_memory.stack.as_ptr_range(),
-        allocated_memory.kernel_virt.clone(),
-        allocated_memory.stack_virt.clone(),
     );
 
     kernel_loader::exec_long_mode(&kernel_information, &allocated_memory, elf.ehdr.e_entry);
