@@ -9,8 +9,7 @@ extern crate arch_amd64;
 use core::{arch::asm, panic::PanicInfo, ptr::NonNull};
 
 use arch_amd64::{
-    descriptors::{CodeDescriptor, DataDescriptor},
-    gdt::GlobalDescriptorTable,
+    apic,
     idt::IDT,
 };
 use bootloader::{multiboot2::MemoryInfo, KernelInformation};
@@ -23,9 +22,6 @@ fn panic_handler(info: &PanicInfo) -> ! {
     }
 }
 
-static EARLY_GDT: GlobalDescriptorTable =
-    GlobalDescriptorTable::new(CodeDescriptor::new(0, 0), DataDescriptor::new(0, 0));
-
 #[no_mangle]
 extern "C" fn _start(kernel_info_ptr: u32) -> ! {
     println!("done.\n");
@@ -36,11 +32,9 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
         info_ptr.as_ref()
     };
 
-    EARLY_GDT.load_gdt();
-
     let idt = IDT::default();
     let loaded_idt = idt.load_idt();
-    println!("IDT loaded: {:?}\n{:#?}", loaded_idt, idt);
+    println!("IDT loaded: {:x?}", loaded_idt);
 
     let mut memory_info: [Option<MemoryInfo>; 20] = core::array::from_fn(|_| None);
     for (idx, mem) in kernel_info
@@ -53,5 +47,17 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
         memory_info[idx] = Some(mem.clone());
     }
 
-    unreachable!()
+    let local_apic = apic::LocalAPIC::get_local();
+    println!(
+        "Setting up APIC with id {:x} at address {:x?}",
+        local_apic.apic_id(),
+        local_apic
+    );
+
+    println!("Goodbye..");
+    loop {
+        unsafe {
+            asm!("hlt");
+        }
+    }
 }
