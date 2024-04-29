@@ -8,10 +8,7 @@ extern crate arch_amd64;
 
 use core::{arch::asm, panic::PanicInfo, ptr::NonNull};
 
-use arch_amd64::{
-    apic,
-    idt::IDT,
-};
+use arch_amd64::{apic, cpuid::CPUID, idt::IDT};
 use bootloader::{multiboot2::MemoryInfo, KernelInformation};
 
 #[panic_handler]
@@ -32,6 +29,18 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
         info_ptr.as_ref()
     };
 
+    let cpuid = CPUID::get_raw(0x1);
+    println!("ebx: {:x?}", cpuid);
+
+    apic::disable_legacy_pic();
+    let local_apic = apic::LocalAPIC::get_local();
+    println!(
+        "Setting up APIC with id {:x} / {:x} at address {:x?}",
+        local_apic.apic_id(),
+        local_apic.apic_version(),
+        local_apic
+    );
+
     let idt = IDT::default();
     let loaded_idt = idt.load_idt();
     println!("IDT loaded: {:x?}", loaded_idt);
@@ -47,14 +56,6 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
         memory_info[idx] = Some(mem.clone());
     }
 
-    let local_apic = apic::LocalAPIC::get_local();
-    println!(
-        "Setting up APIC with id {:x} at address {:x?}",
-        local_apic.apic_id(),
-        local_apic
-    );
-
-    println!("Goodbye..");
     loop {
         unsafe {
             asm!("hlt");
