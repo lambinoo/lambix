@@ -1,5 +1,4 @@
 use crate::io_write_port;
-use crate::println;
 
 use crate::MSR;
 
@@ -19,7 +18,6 @@ impl LocalAPIC {
 
     pub fn get_local() -> LocalAPIC {
         let value = MSR::read(Self::MSR_REGISTER);
-        println!("{value:x?}");
 
         let mut address: usize = (value.low & 0xfffff000) as usize;
         address |= (value.high & 0xfffff) as usize;
