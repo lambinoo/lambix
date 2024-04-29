@@ -1,4 +1,5 @@
-use core::{cmp::max, ops::Range};
+use core::cmp::max;
+use core::ops::Range;
 
 use arch_amd64::paging::PagingTable;
 use bootloader::multiboot2::BootInformation;

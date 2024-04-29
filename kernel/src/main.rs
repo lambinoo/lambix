@@ -6,10 +6,14 @@
 #[macro_use]
 extern crate arch_amd64;
 
-use core::{arch::asm, panic::PanicInfo, ptr::NonNull};
+use core::arch::asm;
+use core::panic::PanicInfo;
+use core::ptr::NonNull;
 
-use arch_amd64::{apic, cpuid::CPUID, idt::IDT};
-use bootloader::{multiboot2::MemoryInfo, KernelInformation};
+use arch_amd64::apic;
+use arch_amd64::idt::IDT;
+use bootloader::multiboot2::MemoryInfo;
+use bootloader::KernelInformation;
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
@@ -28,9 +32,6 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
             .expect("Invalid kernel information passed");
         info_ptr.as_ref()
     };
-
-    let cpuid = CPUID::get_raw(0x1);
-    println!("ebx: {:x?}", cpuid);
 
     apic::disable_legacy_pic();
     let local_apic = apic::LocalAPIC::get_local();

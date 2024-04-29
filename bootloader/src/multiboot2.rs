@@ -1,7 +1,9 @@
 use core::ffi::CStr;
 use core::fmt::Debug;
-use core::mem::{align_of, size_of};
-use core::ops::{Deref, Range};
+use core::mem::align_of;
+use core::mem::size_of;
+use core::ops::Deref;
+use core::ops::Range;
 use core::ptr::NonNull;
 use core::slice::Chunks;
 

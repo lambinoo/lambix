@@ -5,11 +5,11 @@
 
 use core::mem::size_of;
 
-use arch_amd64::{
-    descriptors::{CodeDescriptor, DataDescriptor},
-    gdt::GlobalDescriptorTable,
-};
-use elf::abi::{R_X86_64_RELATIVE, SHT_RELA};
+use arch_amd64::descriptors::CodeDescriptor;
+use arch_amd64::descriptors::DataDescriptor;
+use arch_amd64::gdt::GlobalDescriptorTable;
+use elf::abi::R_X86_64_RELATIVE;
+use elf::abi::SHT_RELA;
 
 #[macro_use]
 extern crate arch_amd64;
@@ -20,7 +20,8 @@ mod bootstrap;
 mod kernel_loader;
 mod paging;
 
-use bootloader::{multiboot2::BootInformation, KernelInformation};
+use bootloader::multiboot2::BootInformation;
+use bootloader::KernelInformation;
 
 #[no_mangle]
 pub extern "C" fn boot_start(

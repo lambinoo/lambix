@@ -195,7 +195,13 @@ macro_rules! default_handler {
         Interrupt::new(interrupt_handler!(
             fn $name(stack_frame: &StackFrame) {
                 let name = stringify!($name);
-                println!(
+
+
+                let mut cr2: usize;
+                unsafe { core::arch::asm!("mov {}, cr2", out(reg) cr2) };
+                println!("cr2 value: {:?}", cr2 as *const ());
+
+                panic!(
                     "Got {}, handling with default handler {:x?}",
                     name, stack_frame
                 );
@@ -207,7 +213,13 @@ macro_rules! default_handler {
         InterruptWithErrorCode::new(interrupt_handler!(
             fn $name(stack_frame: &StackFrame, error_code: u64) {
                 let name = stringify!($name);
-                println!(
+
+
+                let mut cr2: usize;
+                unsafe { core::arch::asm!("mov {}, cr2", out(reg) cr2) };
+                println!("cr2 value: {:?}", cr2 as *const ());
+
+                panic!(
                     "Got {}, handling with default handler ({:x}) {:x?}",
                     name, error_code, stack_frame
                 );

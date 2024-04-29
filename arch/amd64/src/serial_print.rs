@@ -1,4 +1,5 @@
-use core::fmt::{self, Write};
+use core::fmt::Write;
+use core::fmt::{self};
 
 #[macro_export]
 macro_rules! io_write_port {

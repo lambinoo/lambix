@@ -1,4 +1,5 @@
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering;
 
 const PAGING_TABLE_SIZE: usize = 512;
 

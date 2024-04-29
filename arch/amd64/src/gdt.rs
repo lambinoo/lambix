@@ -1,4 +1,7 @@
-use crate::descriptors::{Code64Descriptor, CodeDescriptor, Data64Descriptor, DataDescriptor};
+use crate::descriptors::Code64Descriptor;
+use crate::descriptors::CodeDescriptor;
+use crate::descriptors::Data64Descriptor;
+use crate::descriptors::DataDescriptor;
 
 #[derive(Debug)]
 #[repr(C, packed)]

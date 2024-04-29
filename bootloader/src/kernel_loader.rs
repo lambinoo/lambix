@@ -1,9 +1,9 @@
-use core::{ops::Range, ptr::addr_of};
+use core::ops::Range;
+use core::ptr::addr_of;
 
-use bootloader::{
-    multiboot2::{MemoryInfo, MemoryInfoIter},
-    KernelInformation,
-};
+use bootloader::multiboot2::MemoryInfo;
+use bootloader::multiboot2::MemoryInfoIter;
+use bootloader::KernelInformation;
 
 use crate::paging::KernelMemoryAlloc;
 
