@@ -836,7 +836,7 @@ impl IDT {
             core::arch::asm!(
                 "lidt [{}]",
                 "sidt [{}]",
-                //"sti",
+                "sti",
                 in(reg) &register,
                 in(reg) &mut register
             );
