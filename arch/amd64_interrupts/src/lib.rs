@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(format_args_nl)]
 #![feature(naked_functions)]
 #![feature(asm_const)]
 

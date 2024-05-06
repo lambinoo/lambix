@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(format_args_nl)]
 #![feature(exposed_provenance)]
+#![feature(panic_info_message)]
 
 #[macro_use]
 extern crate arch_amd64;
@@ -16,10 +17,22 @@ use bootloader::multiboot2::MemoryInfo;
 use bootloader::KernelInformation;
 
 #[panic_handler]
-fn panic_handler(info: &PanicInfo) -> ! {
-    println!("{:#?}", info);
+fn panic_handler(panic_info: &PanicInfo) -> ! {
+    let (filename, lineno) = panic_info
+        .location()
+        .map(|loc| (loc.file(), loc.line()))
+        .unwrap_or(("<?>", 0));
+    println!("\n============================================");
+    println!("Lambix panicked at {filename}:{lineno}");
+
+    if let Some(message) = panic_info.message() {
+        println!("{message}");
+    }
+
+    println!("============================================");
+
     loop {
-        unsafe { asm!("hlt") };
+        unsafe { asm!("cld", "cli", "hlt") };
     }
 }
 
@@ -56,15 +69,9 @@ extern "C" fn _start(kernel_info_ptr: u32) -> ! {
         memory_info[idx] = Some(mem.clone());
     }
 
-    unsafe {
-        println!(
-            "{:?}",
-            core::ptr::from_exposed_addr::<u64>(0xffffffff00000000).read_volatile()
-        );
-    };
-
     loop {
         unsafe {
+            core::arch::asm!("int3");
             asm!("hlt");
         }
     }
