@@ -8,11 +8,10 @@ pub mod gdt;
 pub mod paging;
 
 #[cfg(target_arch = "x86_64")]
-#[macro_use]
-pub mod idt;
+pub mod apic;
 
 #[cfg(target_arch = "x86_64")]
-pub mod apic;
+pub mod interrupts;
 
 #[macro_use]
 pub mod serial_print;
@@ -57,3 +56,12 @@ impl MSR {
 
 #[cfg(target_arch = "x86_64")]
 pub mod cpuid;
+
+#[cfg(target_arch = "x86_64")]
+pub fn get_cr2() -> *mut () {
+    let cr2: *mut ();
+    unsafe {
+        core::arch::asm!("mov {}, cr2", out(reg) cr2);
+    };
+    cr2
+}

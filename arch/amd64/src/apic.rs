@@ -2,7 +2,7 @@ use crate::io_write_port;
 
 use crate::MSR;
 
-pub fn disable_legacy_pic() {
+pub fn disable_legacy_8259_pic() {
     unsafe {
         io_write_port!(u8, 0x21, 0xff);
         io_write_port!(u8, 0xA1, 0xff);

@@ -12,10 +12,10 @@ pub struct StackFrame {
     ss: u64,
 }
 
-pub type HandlerType = unsafe extern "C" fn(&StackFrame);
-pub type HandlerWithCodeType = unsafe extern "C" fn(&StackFrame, u64);
+pub type HandlerType = unsafe extern "C" fn() -> !;
+pub type HandlerWithCodeType = unsafe extern "C" fn() -> !;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct InterruptHandler {
     interrupt: HandlerType,
@@ -48,7 +48,7 @@ impl InterruptHandler {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct InterruptWithErrorCodeHandler {
     interrupt: HandlerWithCodeType,
@@ -86,7 +86,7 @@ macro_rules! interrupt_handler {
     (fn $name:ident($stack:ident: $stacktype:ty) $impl:block) => {
         unsafe {
             #[naked]
-            pub unsafe extern "C" fn $name($stack: $stacktype) {
+            pub unsafe extern "C" fn $name() -> ! {
                 extern "C" fn __impl($stack: $stacktype) {
                     $impl
                 }
@@ -128,14 +128,14 @@ macro_rules! interrupt_handler {
                 )
             }
 
-            $crate::idt::InterruptHandler::new($name)
+            $crate::interrupts::InterruptHandler::new($name)
         }
     };
 
     (fn $name:ident($stack:ident: $stacktype:ty, $varname:ident: u64) $impl:block) => {
         unsafe {
             #[naked]
-            pub unsafe extern "C" fn $name($stack: $stacktype, $varname: u64) {
+            pub unsafe extern "C" fn $name() -> ! {
                 #[inline(always)]
                 extern "C" fn __impl($stack: $stacktype, $varname: u64) {
                     $impl
@@ -185,7 +185,7 @@ macro_rules! interrupt_handler {
             //             v
             //                  v
 
-            $crate::idt::InterruptWithErrorCodeHandler::new($name)
+            $crate::interrupts::InterruptWithErrorCodeHandler::new($name)
         }
     };
 }
@@ -195,7 +195,6 @@ macro_rules! default_handler {
         Interrupt::new(interrupt_handler!(
             fn $name(stack_frame: &StackFrame) {
                 let name = stringify!($name);
-
 
                 let mut cr2: usize;
                 unsafe { core::arch::asm!("mov {}, cr2", out(reg) cr2) };
@@ -249,6 +248,10 @@ impl InterruptDescriptor {
     pub const INTERRUPT_GATE: u64 = 0xe << 40;
     pub const TRAP_GATE: u64 = 0xf << 40;
 
+    const fn disabled() -> Self {
+        InterruptDescriptor { low: 0, high: 0 }
+    }
+
     fn from_address(address: u64) -> Self {
         let high = address >> 32;
         let low = (address & 0xffff)
@@ -271,10 +274,22 @@ impl InterruptDescriptor {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 #[repr(transparent)]
 pub struct ReservedInterrupt {
     inner: u128,
+}
+
+impl ReservedInterrupt {
+    const fn new() -> Self {
+        Self { inner: 0 }
+    }
+}
+
+impl Default for ReservedInterrupt {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug)]
@@ -284,6 +299,12 @@ pub struct InterruptWithErrorCode {
 }
 
 impl InterruptWithErrorCode {
+    pub const fn disabled() -> Self {
+        Self {
+            inner: InterruptDescriptor::disabled(),
+        }
+    }
+
     pub fn new(handler: InterruptWithErrorCodeHandler) -> Self {
         Self {
             inner: InterruptDescriptor::from_handler_with_error(handler),
@@ -298,6 +319,12 @@ pub struct Interrupt {
 }
 
 impl Interrupt {
+    pub const fn disabled() -> Self {
+        Self {
+            inner: InterruptDescriptor::disabled(),
+        }
+    }
+
     pub fn new(handler: InterruptHandler) -> Self {
         Self {
             inner: InterruptDescriptor::from_handler(handler),
