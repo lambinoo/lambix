@@ -1,5 +1,4 @@
 use core::ops::Range;
-use core::ptr::addr_of;
 
 use bootloader::multiboot2::MemoryInfo;
 use bootloader::multiboot2::MemoryInfoIter;
@@ -42,7 +41,7 @@ pub fn get_available_memory<'a>(
     let kernel = get_embedded_kernel().expect("Failed to get embedded kernel");
 
     let exclude_range = Range {
-        start: unsafe { addr_of!(bootloader_start) },
+        start: &raw const bootloader_start,
         end: kernel.as_ptr_range().end,
     };
 

@@ -8,15 +8,14 @@ macro_rules! isr_entry_error_code {
     ($name:ident, $isr_no:literal) => {
         unsafe {
             #[link_section = ".idt"]
-            #[naked]
+            #[unsafe(naked)]
             unsafe extern "C" fn $name() -> ! {
-                core::arch::asm!(
+                core::arch::naked_asm!(
                     "push rdi",
                     "mov rdi, {isr}",
                     "jmp {entry}",
                     isr = const $isr_no,
                     entry = sym $crate::handler_macros::interrupt_entrypoint,
-                    options(noreturn)
                 )
             }
 
@@ -30,16 +29,15 @@ macro_rules! isr_entry {
     ($name:ident, $isr_no:literal) => {
         unsafe {
             #[link_section = ".idt"]
-            #[naked]
+            #[unsafe(naked)]
             unsafe extern "C" fn $name() -> ! {
-                core::arch::asm!(
+                core::arch::naked_asm!(
                     "push 0",
                     "push rdi",
                     "mov rdi, {isr}",
                     "jmp {entry}",
                     isr = const $isr_no,
                     entry = sym $crate::handler_macros::interrupt_entrypoint,
-                    options(noreturn)
                 )
             }
 
@@ -74,9 +72,9 @@ pub struct SavedRegisters {
 /// # Safety
 /// Do not call this function directly, it's part of the interrupt handling mechanism
 #[link_section = ".idt"]
-#[naked]
+#[unsafe(naked)]
 pub unsafe extern "C" fn interrupt_entrypoint() {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "push rsi",
         "push rdx",
         "mov rsi, [rsp+24]",
@@ -110,7 +108,6 @@ pub unsafe extern "C" fn interrupt_entrypoint() {
         "add rsp, 8",
         "iretq",
         sym crate::handler_macros::interrupt_handler,
-        options(noreturn)
     )
 }
 
@@ -130,9 +127,9 @@ pub unsafe extern "C" fn interrupt_handler(
         }
 
         InterruptVector::Breakpoint => {
-            println!("Breakpoint hit, dumping registers: {:#x?}", registers);
+            println!("Breakpoint hit, dumping registers: {registers:#x?}");
         }
 
-        _ => panic!("{isr:?} raised (error code: {error_code:x}), aborting: {registers:#?}"),
+        _ => panic!("{isr:?} raised (error code: {error_code:x}), aborting: {registers:#x?}"),
     }
 }

@@ -7,52 +7,67 @@ use multiboot2::BootInformation;
 
 pub mod multiboot2;
 
-#[cfg_attr(target_width_pointer = "32", Derive(Debug))]
+pub type Address64 = [u8; 8];
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct KernelInformation {
     boot_info: u32,
     kernel_range: Range<u32>,
     initial_stack_range: Range<u32>,
-}
-
-fn convert_range<T: TryInto<usize>>(range: Range<T>) -> Range<*const ()> {
-    let start = TryInto::<usize>::try_into(range.start).unwrap_or_default() as _;
-    let end = TryInto::<usize>::try_into(range.end).unwrap_or_default() as _;
-    start..end
-}
-
-impl core::fmt::Debug for KernelInformation {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("KernelInformation")
-            .field("boot_info", &format_args!("0x{:x}", &self.boot_info))
-            .field(
-                "kernel_range",
-                &format_args!("{:?}", convert_range(self.kernel_range.clone())),
-            )
-            .field(
-                "initial_stack_range",
-                &format_args!("{:?}", convert_range(self.initial_stack_range.clone())),
-            )
-            .finish()
-    }
+    kernel_range_up: (Address64, Address64),
+    initial_stack_range_up: (Address64, Address64),
 }
 
 impl KernelInformation {
+    #[cfg(target_pointer_width = "32")]
     pub fn new(
         boot_info: &BootInformation,
         kernel_range: Range<*const u8>,
         stack_range: Range<*const u8>,
+        kernel_range_up: Range<u64>,
+        stack_range_up: Range<u64>,
     ) -> KernelInformation {
-        let stable_abi_range = |range: Range<*const u8>| Range {
-            start: u32::try_from(range.start as usize).unwrap(),
-            end: u32::try_from(range.end as usize).unwrap(),
+        let stable_abi_range = |range: Range<*const u8>| {
+            u32::try_from(range.start as usize).unwrap()..u32::try_from(range.end as usize).unwrap()
         };
 
         Self {
             boot_info: u32::try_from(core::ptr::from_ref(boot_info) as usize).unwrap(),
             kernel_range: stable_abi_range(kernel_range),
             initial_stack_range: stable_abi_range(stack_range),
+            kernel_range_up: (
+                kernel_range_up.start.to_ne_bytes(),
+                kernel_range_up.end.to_ne_bytes(),
+            ),
+            initial_stack_range_up: (
+                stack_range_up.start.to_ne_bytes(),
+                stack_range_up.end.to_ne_bytes(),
+            ),
         }
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    pub fn kernel_vrange(&self) -> Range<usize> {
+        usize::from_ne_bytes(self.kernel_range_up.0)..usize::from_ne_bytes(self.kernel_range_up.1)
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    pub fn stack_vrange(&self) -> Range<usize> {
+        usize::from_ne_bytes(self.initial_stack_range_up.0)
+            ..usize::from_ne_bytes(self.initial_stack_range_up.1)
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    pub fn kernel_phy_range(&self) -> Range<usize> {
+        usize::try_from(self.kernel_range.start).unwrap()
+            ..usize::try_from(self.kernel_range.end).unwrap()
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    pub fn stack_phy_range(&self) -> Range<usize> {
+        usize::try_from(self.initial_stack_range.start).unwrap()
+            ..usize::try_from(self.initial_stack_range.end).unwrap()
     }
 
     pub fn boot_info(&self) -> &'static BootInformation {

@@ -1,7 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(format_args_nl)]
-#![feature(pointer_is_aligned_to)]
 
 use core::mem::size_of;
 
@@ -115,6 +113,8 @@ pub extern "C" fn boot_start(
         boot_info,
         allocated_memory.kernel.as_ptr_range(),
         allocated_memory.stack.as_ptr_range(),
+        allocated_memory.kernel_virt.clone(),
+        allocated_memory.stack_virt.clone(),
     );
 
     kernel_loader::exec_long_mode(&kernel_information, &allocated_memory, elf.ehdr.e_entry);

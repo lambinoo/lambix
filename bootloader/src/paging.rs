@@ -13,8 +13,8 @@ const KERNEL_TOP_INDEX: usize = 511;
 
 const EMPTY_TABLE: PagingTable = PagingTable::new();
 
-static ROOT_TABLE: PagingTable = EMPTY_TABLE;
-static HIGH_TABLE: PagingTable = EMPTY_TABLE;
+static PML4_TABLE: PagingTable = EMPTY_TABLE;
+static PDP_TABLE: PagingTable = EMPTY_TABLE;
 static KERNEL_TABLE: PagingTable = EMPTY_TABLE;
 static STACK_TABLE: PagingTable = EMPTY_TABLE;
 static IDENTITY_TABLE: PagingTable = EMPTY_TABLE;
@@ -75,7 +75,7 @@ pub fn setup_kernel_memory(
     }
 }
 
-fn setup_mapping(pg_table_2mb: &PagingTable, high_index: usize, memory: &[u8], flags: u64) -> u64 {
+fn setup_mapping(pt_table_2b: &PagingTable, high_index: usize, memory: &[u8], flags: u64) -> u64 {
     let needed_allocations = memory.len().div_ceil(ALIGN_2MB);
     if needed_allocations >= PagingTable::MAX_INDEX {
         panic!("Kernel is too large, aborting");
@@ -83,17 +83,17 @@ fn setup_mapping(pg_table_2mb: &PagingTable, high_index: usize, memory: &[u8], f
 
     for i in 0..needed_allocations {
         let address = (memory.as_ptr() as usize + ALIGN_2MB * i) as u64;
-        pg_table_2mb.store(i, address | PRESENT_FLAG | PAGE_SIZE_FLAG | flags);
+        pt_table_2b.store(i, address | PRESENT_FLAG | PAGE_SIZE_FLAG | flags);
     }
 
-    HIGH_TABLE.store(
+    PDP_TABLE.store(
         high_index,
-        core::ptr::from_ref(pg_table_2mb) as u64 | PRESENT_FLAG | RW_FLAG,
+        core::ptr::from_ref(pt_table_2b) as u64 | PRESENT_FLAG | RW_FLAG,
     );
 
-    ROOT_TABLE.store(
+    PML4_TABLE.store(
         PagingTable::MAX_INDEX,
-        core::ptr::from_ref(&HIGH_TABLE) as u64 | PRESENT_FLAG | RW_FLAG,
+        core::ptr::from_ref(&PDP_TABLE) as u64 | PRESENT_FLAG | RW_FLAG,
     );
 
     u64::MAX << 39 | (high_index as u64) << 30
@@ -105,14 +105,14 @@ fn setup_identity_paging() {
         IDENTITY_TABLE.store(idx, addr | PRESENT_FLAG | RW_FLAG | PAGE_SIZE_FLAG);
     }
 
-    ROOT_TABLE.store(
+    PML4_TABLE.store(
         0,
         core::ptr::from_ref(&IDENTITY_TABLE) as u64 | PRESENT_FLAG | RW_FLAG,
     );
 }
 
 fn apply_paging() {
-    let root_table = &ROOT_TABLE;
+    let root_table = &PML4_TABLE;
     unsafe {
         core::arch::asm!(
             "mov cr3, {t}",

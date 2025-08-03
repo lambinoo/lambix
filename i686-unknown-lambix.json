@@ -2,7 +2,7 @@
   "llvm-target": "i686-unknown-none",
   "target-endian": "little",
   "target-pointer-width": "32",
-  "target-c-int-width": "32",
+  "target-c-int-width": 32,
   "os": "lambix",
   "env": "floof",
   "vendor": "lambix",
@@ -25,5 +25,6 @@
   "linker-is-gnu": true,
   "position-independent-executables": false,
   "panic-strategy": "abort",
-  "max-atomic-width": 64
+  "max-atomic-width": 64,
+  "rustc-abi": "x86-softfloat"
 }

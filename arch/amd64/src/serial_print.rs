@@ -48,7 +48,8 @@ macro_rules! println {
 
     ($($arg:tt)*) => {
         {
-            $crate::serial_print::print(format_args_nl!($($arg)*));
+            $crate::serial_print::print(format_args!("{}\n", format_args!($($arg)*)));
+
         }
     };
 }

@@ -14,7 +14,7 @@ $(OUT_DIR)/lambix.iso: $(OUT_DIR)/lambix packaging/grub/grub.cfg
 	@mkdir -p $(OUT_DIR)/sysroot/boot/grub/
 	@cp -r $< $(OUT_DIR)/sysroot/boot/lambix
 	@cp -r $(word 2,$^) $(OUT_DIR)/sysroot/boot/grub/
-	@grub2-mkrescue -o $@ $(OUT_DIR)/sysroot/ 2>/dev/null
+	@grub2-mkrescue -o $@ $(OUT_DIR)/sysroot/
 	@printf "\nISO has been generated at %s\n" "$@"
 
 $(BOOT_OUT_DIR)/bootloader: bootloader

@@ -1,7 +1,4 @@
 #![no_std]
-#![feature(format_args_nl)]
-#![feature(naked_functions)]
-#![feature(asm_const)]
 
 use arch_amd64::interrupts::Interrupt;
 use arch_amd64::interrupts::InterruptHandler;

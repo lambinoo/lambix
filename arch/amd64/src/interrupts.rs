@@ -85,13 +85,13 @@ impl InterruptWithErrorCodeHandler {
 macro_rules! interrupt_handler {
     (fn $name:ident($stack:ident: $stacktype:ty) $impl:block) => {
         unsafe {
-            #[naked]
+            #[unsafe(naked)]
             pub unsafe extern "C" fn $name() -> ! {
                 extern "C" fn __impl($stack: $stacktype) {
                     $impl
                 }
 
-                core::arch::asm!(
+                core::arch::naked_asm!(
                     "push rdi",
                     "push rsi",
                     "lea rdi, [rsp+16]",
@@ -124,7 +124,6 @@ macro_rules! interrupt_handler {
                     "pop rdi",
                     "iretq",
                     sym __impl,
-                    options(noreturn)
                 )
             }
 
@@ -134,14 +133,14 @@ macro_rules! interrupt_handler {
 
     (fn $name:ident($stack:ident: $stacktype:ty, $varname:ident: u64) $impl:block) => {
         unsafe {
-            #[naked]
+            #[unsafe(naked)]
             pub unsafe extern "C" fn $name() -> ! {
                 #[inline(always)]
                 extern "C" fn __impl($stack: $stacktype, $varname: u64) {
                     $impl
                 }
 
-                core::arch::asm!(
+                core::arch::naked_asm!(
                     "push rdi",
                     "push rsi",
                     "mov rsi, [rsp+16]",
@@ -176,7 +175,6 @@ macro_rules! interrupt_handler {
                     "add rsp, 8",
                     "iretq",
                     sym __impl,
-                    options(noreturn)
                 )
             }
             // (rsp)

@@ -12,8 +12,8 @@ impl core::fmt::Debug for Descriptor {
         metadata.field("segment", &format_args!("0x{:08x}", self.segment()));
 
         let flags = (self.0 >> 32) as u32;
-        metadata.field("flags", &format_args!("{:032b}", flags));
-        metadata.field("flags_hex", &format_args!("{:08x}", flags));
+        metadata.field("flags", &format_args!("{flags:032b}"));
+        metadata.field("flags_hex", &format_args!("{flags:08x}"));
         metadata.field("raw", &format_args!("0x{:016x}", self.0));
         metadata.finish()
     }

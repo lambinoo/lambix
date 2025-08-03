@@ -2,7 +2,7 @@
     "llvm-target": "x86_64-unknown-none",
     "target-endian": "little",
     "target-pointer-width": "64",
-    "target-c-int-width": "32",
+    "target-c-int-width": 32,
     "os": "lambix",
     "env": "floof",
     "vendor": "lambix",
@@ -24,5 +24,6 @@
     "disable-redzone": true,
     "linker-is-gnu": true,
     "position-independent-executables": true,
-    "panic-strategy": "abort"
+    "panic-strategy": "abort",
+    "rustc-abi": "x86-softfloat"
 }

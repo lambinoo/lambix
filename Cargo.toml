@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bootloader", "kernel", "build_utils", "arch/amd64", "arch/amd64_interrupts"]
+members = ["bootloader", "kernel", "build_utils", "arch/amd64", "arch/amd64_interrupts", "kernel_mm"]
 exclude = ["compiler/rust"]
 
 [profile.release]
